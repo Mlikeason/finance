@@ -322,17 +322,6 @@
       <div class="add-form" id="incForm">
         <div class="form-grid">
           <div>
-            <label>来源</label>
-            <select id="iSrc">
-              <option value="salary">月薪</option>
-              <option value="bonus">奖金</option>
-              <option value="dividend">股息 / 分红</option>
-              <option value="interest">利息</option>
-              <option value="freelance">副业 / 兼职</option>
-              <option value="other">其他</option>
-            </select>
-          </div>
-          <div>
             <label>金额</label>
             <input type="number" id="iAmt" placeholder="0.00" step="0.01" min="0">
           </div>
@@ -348,7 +337,7 @@
             <label>日期</label>
             <input type="date" id="iDate">
           </div>
-          <div class="full">
+          <div>
             <label>备注</label>
             <input type="text" id="iNote" placeholder="可选">
           </div>
@@ -427,15 +416,10 @@ const ACCOUNTS = [
   { key: 'dbs_fixed', name: 'DBS 定期',  defaultCur: 'SGD' },
   { key: 'dbs_save',  name: 'DBS 活期',  defaultCur: 'SGD' },
   { key: 'uob_fixed', name: 'UOB 定期',  defaultCur: 'SGD' },
-  { key: 'uob_save',  name: 'UOB 活期',  defaultCur: 'SGD' },
   { key: 'longbridge', name: '长桥证券', defaultCur: 'USD' },
   { key: 'ibkr',       name: 'IBKR',     defaultCur: 'USD' },
   { key: 'moomoo',     name: 'Moomoo',   defaultCur: 'USD' },
 ];
-const INC_LABELS = {
-  salary: '月薪', bonus: '奖金', dividend: '股息/分红',
-  interest: '利息', freelance: '副业', other: '其他'
-};
 
 // ── Storage ──
 const load = k => JSON.parse(localStorage.getItem('fin2_' + k) || 'null');
@@ -468,13 +452,22 @@ for (let i = -11; i <= 1; i++) {
   if (i === 0) o.selected = true;
   mSel.appendChild(o);
 }
-mSel.onchange = () => { propagateRecurring(); render(); };
+mSel.onchange = () => { resetDefaultDates(); propagateRecurring(); render(); };
 const getMonth = () => mSel.value;
 const matchMonth = d => d && d.startsWith(getMonth());
 
-// ── Set default dates ──
-document.getElementById('iDate').value = today();
-document.getElementById('eDate').value = today();
+// ── Set default dates (follow selected month) ──
+function selectedMonthDate(day) {
+  return getMonth() + '-' + String(day).padStart(2, '0');
+}
+function resetDefaultDates() {
+  const d = new Date();
+  const curMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const day = getMonth() === curMonth ? d.getDate() : 1;
+  document.getElementById('iDate').value = selectedMonthDate(day);
+  document.getElementById('eDate').value = selectedMonthDate(day);
+}
+resetDefaultDates();
 
 // ── Propagate recurring expenses ──
 function propagateRecurring() {
@@ -502,13 +495,12 @@ document.getElementById('toggleExp').onclick = () => {
 
 // ── Add income ──
 document.getElementById('iSubmit').onclick = () => {
-  const src = document.getElementById('iSrc').value;
   const amt = parseFloat(document.getElementById('iAmt').value);
   const cur = document.getElementById('iCur').value;
   const date = document.getElementById('iDate').value;
   const note = document.getElementById('iNote').value.trim();
   if (isNaN(amt) || amt <= 0 || !date) return;
-  incomes.push({ id: uid(), src, amount: amt, currency: cur, date, note });
+  incomes.push({ id: uid(), src: 'salary', amount: amt, currency: cur, date, note });
   save('incomes', incomes);
   document.getElementById('iAmt').value = '';
   document.getElementById('iNote').value = '';
@@ -665,10 +657,9 @@ function render() {
   if (!mInc.length) {
     incBody.innerHTML = '<div class="empty">暂无收入记录</div>';
   } else {
-    let h = '<table><thead><tr><th>来源</th><th>日期</th><th>备注</th><th class="amt-h">金额</th><th class="del-cell"></th></tr></thead><tbody>';
+    let h = '<table><thead><tr><th>日期</th><th>备注</th><th class="amt-h">金额</th><th class="del-cell"></th></tr></thead><tbody>';
     mInc.sort((a, b) => b.date.localeCompare(a.date)).forEach(x => {
       h += `<tr>
-        <td><strong>${INC_LABELS[x.src] || x.src}</strong></td>
         <td class="date-cell">${x.date}</td>
         <td class="note-cell">${x.note || ''}</td>
         <td class="amt">${fmt(x.amount, x.currency)}<span class="cur-badge ${x.currency}">${x.currency}</span></td>
