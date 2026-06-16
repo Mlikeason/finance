@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>财务</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23f4f3ef'/%3E%3Crect x='20' y='52' width='16' height='32' rx='3' fill='%233d6b4f'/%3E%3Crect x='42' y='38' width='16' height='46' rx='3' fill='%233d6b4f'/%3E%3Crect x='64' y='22' width='16' height='62' rx='3' fill='%233d6b4f'/%3E%3C/svg%3E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="财务">
+<meta name="theme-color" content="#f4f3ef">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..600;1,9..40,300..600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -412,6 +417,34 @@
 <script>
 // ── Config ──
 const RATES = { SGD: 1, USD: 1.34, HKD: 0.17 };
+
+// ── Generate apple-touch-icon (PNG from canvas) ──
+(function() {
+  const s = 180;
+  const c = document.createElement('canvas');
+  c.width = s; c.height = s;
+  const x = c.getContext('2d');
+  function rrect(cx, cy, w, h, r) {
+    x.beginPath();
+    x.moveTo(cx + r, cy);
+    x.lineTo(cx + w - r, cy); x.arcTo(cx + w, cy, cx + w, cy + r, r);
+    x.lineTo(cx + w, cy + h - r); x.arcTo(cx + w, cy + h, cx + w - r, cy + h, r);
+    x.lineTo(cx + r, cy + h); x.arcTo(cx, cy + h, cx, cy + h - r, r);
+    x.lineTo(cx, cy + r); x.arcTo(cx, cy, cx + r, cy, r);
+    x.closePath(); x.fill();
+  }
+  const rad = s * 0.22;
+  x.fillStyle = '#f4f3ef'; rrect(0, 0, s, s, rad);
+  x.fillStyle = '#3d6b4f';
+  const bw = s * 0.16, gap = s * 0.06, br = s * 0.03, bx = s * 0.2;
+  rrect(bx, s*0.52, bw, s*0.32, br);
+  rrect(bx + bw + gap, s*0.38, bw, s*0.46, br);
+  rrect(bx + 2*(bw + gap), s*0.22, bw, s*0.62, br);
+  const link = document.createElement('link');
+  link.rel = 'apple-touch-icon';
+  link.href = c.toDataURL('image/png');
+  document.head.appendChild(link);
+})();
 const ACCOUNTS = [
   { key: 'dbs_fixed', name: 'DBS 定期',  defaultCur: 'SGD' },
   { key: 'dbs_save',  name: 'DBS 活期',  defaultCur: 'SGD' },
