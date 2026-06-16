@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>财务</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..600;1,9..40,300..600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f3ef;
+    --surface: #fff;
+    --text: #1c1917;
+    --text2: #57534e;
+    --muted: #a8a29e;
+    --border: #e7e5e0;
+    --border2: #f0eeea;
+    --accent: #3d6b4f;
+    --accent-bg: #eef5f0;
+    --red: #b94a3e;
+    --red-bg: #fdf2f1;
+    --amber: #a16207;
+    --amber-bg: #fef9e7;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 2px rgba(28,25,23,0.04), 0 0 0 1px rgba(28,25,23,0.03);
+    --shadow-lg: 0 4px 12px rgba(28,25,23,0.06), 0 0 0 1px rgba(28,25,23,0.04);
+    --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: 'DM Mono', 'SF Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 15px; }
+  body {
+    font-family: var(--font); background: var(--bg); color: var(--text);
+    line-height: 1.6; -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  select, input, button, textarea { font: inherit; color: inherit; }
+  ::selection { background: var(--accent); color: #fff; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d6d3cd; border-radius: 3px; }
+
+  .app { max-width: 780px; margin: 0 auto; padding: 48px 24px 120px; }
+
+  /* ── Header ── */
+  .header {
+    display: flex; justify-content: flex-end; align-items: center;
+    margin-bottom: 40px;
+  }
+  .header-r { display: flex; gap: 6px; align-items: center; }
+  .month-sel {
+    padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); font-size: 13px; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a8a29e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    padding-right: 30px;
+  }
+  .btn-ic {
+    width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); cursor: pointer; display: flex; align-items: center;
+    justify-content: center; color: var(--muted); transition: all 0.15s;
+  }
+  .btn-ic:hover { border-color: var(--text2); color: var(--text); }
+  .btn-ic svg { width: 16px; height: 16px; }
+
+  /* ── Net worth hero ── */
+  .hero {
+    margin-bottom: 32px; padding: 28px 0; border-bottom: 1px solid var(--border);
+  }
+  .hero-label {
+    font-size: 12px; color: var(--muted); letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .hero-val {
+    font-family: var(--mono); font-size: 36px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1;
+  }
+  .hero-sub {
+    margin-top: 10px; display: flex; gap: 20px; font-size: 12px; color: var(--text2);
+  }
+  .hero-sub span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-green { background: var(--accent); }
+  .dot-red { background: var(--red); }
+  .dot-blue { background: #5b7bb4; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 40px; }
+  .sec-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px;
+  }
+  .sec-head h2 {
+    font-size: 13px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text2);
+  }
+  .sec-head .actions { display: flex; gap: 6px; }
+  .btn-sm {
+    padding: 5px 12px; font-size: 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--surface); cursor: pointer;
+    color: var(--text2); transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-sm:hover { border-color: var(--text2); color: var(--text); }
+  .btn-sm.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* ── Asset cards ── */
+  .asset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .asset-card {
+    background: var(--surface); border-radius: var(--radius); padding: 18px;
+    box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.2s;
+    border: 1px solid var(--border2);
+  }
+  .asset-card:hover { box-shadow: var(--shadow-lg); }
+  .ac-name {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.04em;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .ac-val {
+    font-family: var(--mono); font-size: 18px; font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .ac-cur {
+    display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 6px;
+    border-radius: 4px; margin-top: 6px; letter-spacing: 0.03em;
+  }
+  .ac-cur.SGD { background: #e8e5e0; color: var(--text2); }
+  .ac-cur.USD { background: #dceef5; color: #2a6496; }
+  .ac-cur.HKD { background: #f5ecd7; color: #7c6a1e; }
+  .ac-empty { color: var(--muted); font-size: 13px; font-style: italic; }
+
+  /* ── Asset update modal ── */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(28,25,23,0.3); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    backdrop-filter: blur(4px);
+  }
+  .modal-bg.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border-radius: 16px; padding: 32px;
+    width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    transform: translateY(10px); transition: transform 0.2s;
+  }
+  .modal-bg.open .modal { transform: translateY(0); }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .modal .sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .modal label {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; display: block; margin-bottom: 6px;
+  }
+  .modal input, .modal select {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 15px; margin-bottom: 16px;
+    background: var(--bg);
+  }
+  .modal input:focus, .modal select:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .modal-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .modal-btns button {
+    flex: 1; padding: 10px; border-radius: var(--radius-sm); font-size: 13px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1px solid var(--border);
+  }
+  .modal-btns .cancel { background: var(--surface); color: var(--text2); }
+  .modal-btns .cancel:hover { background: var(--bg); }
+  .modal-btns .confirm { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .modal-btns .confirm:hover { opacity: 0.85; }
+
+  /* ── Table ── */
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); border: 1px solid var(--border2); overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 10px; color: var(--muted); font-weight: 500;
+    padding: 12px 16px; letter-spacing: 0.06em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border); background: #faf9f7;
+  }
+  thead th:last-child, thead th.amt-h { text-align: right; }
+  tbody td {
+    padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--border2);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #faf9f7; }
+  td.amt {
+    font-family: var(--mono); text-align: right; font-size: 14px;
+    white-space: nowrap;
+  }
+  .cur-badge {
+    display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 5px;
+    border-radius: 4px; margin-left: 4px; vertical-align: middle;
+    letter-spacing: 0.03em;
+  }
+  .cur-badge.SGD { background: #e8e5e0; color: var(--text2); }
+  .cur-badge.USD { background: #dceef5; color: #2a6496; }
+  .cur-badge.HKD { background: #f5ecd7; color: #7c6a1e; }
+  .recurring-tag {
+    display: inline-block; font-size: 10px; color: var(--accent);
+    background: var(--accent-bg); padding: 2px 6px; border-radius: 4px;
+    margin-left: 6px; vertical-align: middle;
+  }
+  .date-cell { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .note-cell { color: var(--muted); font-size: 13px; }
+  .del-cell { width: 40px; text-align: center; }
+  .del-btn {
+    opacity: 0; border: none; background: none; color: var(--red);
+    cursor: pointer; font-size: 14px; transition: opacity 0.15s; padding: 4px;
+  }
+  tr:hover .del-btn { opacity: 0.5; }
+  .del-btn:hover { opacity: 1 !important; }
+  .empty {
+    padding: 32px 16px; text-align: center; color: var(--muted); font-size: 13px;
+  }
+  .sec-foot {
+    display: flex; justify-content: space-between; padding: 14px 16px;
+    border-top: 1px solid var(--border); font-size: 13px; font-weight: 500;
+    background: #faf9f7;
+  }
+  .sec-foot .val { font-family: var(--mono); }
+
+  /* ── Add form ── */
+  .add-form {
+    display: none; padding: 16px; border-top: 1px solid var(--border);
+    background: #faf9f7;
+  }
+  .add-form.open { display: block; }
+  .form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-grid label {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; display: block; margin-bottom: 5px;
+  }
+  .form-grid input, .form-grid select {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 13px; background: var(--surface);
+  }
+  .form-grid input:focus, .form-grid select:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg);
+  }
+  .form-grid input[type="number"] { font-family: var(--mono); }
+  .form-check {
+    display: flex; align-items: center; gap: 8px; padding-top: 4px;
+  }
+  .form-check input[type="checkbox"] {
+    width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer;
+  }
+  .form-check label {
+    font-size: 12px; color: var(--text2); text-transform: none;
+    letter-spacing: normal; margin: 0; cursor: pointer;
+  }
+  .btn-submit {
+    margin-top: 12px; width: 100%; padding: 10px; background: var(--text);
+    color: var(--bg); border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-submit:hover { opacity: 0.8; }
+  .btn-submit:active { transform: scale(0.99); }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    html { font-size: 14px; }
+    .app { padding: 24px 16px 100px; }
+    .asset-grid { grid-template-columns: 1fr 1fr; }
+    .hero-val { font-size: 28px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .hero-sub { flex-wrap: wrap; gap: 10px; }
+    .modal { width: calc(100vw - 32px); padding: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-r">
+      <select class="month-sel" id="monthSel"></select>
+      <button class="btn-ic" id="exportBtn" title="导出">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v9m0 0l-3-3m3 3l3-3M3 13h10"/></svg>
+      </button>
+      <button class="btn-ic" id="importBtn" title="导入">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 11V2m0 0L5 5m3-3l3 3M3 13h10"/></svg>
+      </button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-label">净资产</div>
+    <div class="hero-val" id="heroVal">—</div>
+    <div class="hero-sub">
+      <span><i class="dot dot-green"></i>本月收入 <strong id="heroInc">—</strong></span>
+      <span><i class="dot dot-red"></i>本月支出 <strong id="heroExp">—</strong></span>
+      <span><i class="dot dot-blue"></i>结余 <strong id="heroNet">—</strong></span>
+    </div>
+  </div>
+
+  <!-- Assets -->
+  <div class="section">
+    <div class="sec-head">
+      <h2>资产账户</h2>
+    </div>
+    <div class="asset-grid" id="assetGrid"></div>
+  </div>
+
+  <!-- Income -->
+  <div class="section">
+    <div class="sec-head">
+      <h2>本月收入</h2>
+      <div class="actions">
+        <button class="btn-sm" id="toggleInc">+ 添加</button>
+      </div>
+    </div>
+    <div class="card">
+      <div id="incBody"></div>
+      <div class="add-form" id="incForm">
+        <div class="form-grid">
+          <div>
+            <label>来源</label>
+            <select id="iSrc">
+              <option value="salary">月薪</option>
+              <option value="bonus">奖金</option>
+              <option value="dividend">股息 / 分红</option>
+              <option value="interest">利息</option>
+              <option value="freelance">副业 / 兼职</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+          <div>
+            <label>金额</label>
+            <input type="number" id="iAmt" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div>
+            <label>币种</label>
+            <select id="iCur">
+              <option value="SGD">SGD</option>
+              <option value="USD">USD</option>
+              <option value="HKD">HKD</option>
+            </select>
+          </div>
+          <div>
+            <label>日期</label>
+            <input type="date" id="iDate">
+          </div>
+          <div class="full">
+            <label>备注</label>
+            <input type="text" id="iNote" placeholder="可选">
+          </div>
+        </div>
+        <button class="btn-submit" id="iSubmit">录入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expenses -->
+  <div class="section">
+    <div class="sec-head">
+      <h2>本月支出</h2>
+      <div class="actions">
+        <button class="btn-sm" id="toggleExp">+ 添加</button>
+      </div>
+    </div>
+    <div class="card">
+      <div id="expBody"></div>
+      <div class="add-form" id="expForm">
+        <div class="form-grid">
+          <div class="full">
+            <label>项目</label>
+            <input type="text" id="eName" placeholder="如：房租、保险、超市">
+          </div>
+          <div>
+            <label>金额 (SGD)</label>
+            <input type="number" id="eAmt" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div>
+            <label>日期</label>
+            <input type="date" id="eDate">
+          </div>
+          <div class="full">
+            <div class="form-check">
+              <input type="checkbox" id="eRecur">
+              <label for="eRecur">每月固定支出（自动循环）</label>
+            </div>
+          </div>
+          <div class="full">
+            <label>备注</label>
+            <input type="text" id="eNote" placeholder="可选">
+          </div>
+        </div>
+        <button class="btn-submit" id="eSubmit">录入</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Asset update modal -->
+<div class="modal-bg" id="assetModal">
+  <div class="modal">
+    <h3 id="modalTitle">更新余额</h3>
+    <div class="sub" id="modalSub"></div>
+    <label>当前余额</label>
+    <input type="number" id="modalAmt" placeholder="0.00" step="0.01">
+    <label>币种</label>
+    <select id="modalCur">
+      <option value="SGD">SGD</option>
+      <option value="USD">USD</option>
+      <option value="HKD">HKD</option>
+    </select>
+    <div class="modal-btns">
+      <button class="cancel" id="modalCancel">取消</button>
+      <button class="confirm" id="modalConfirm">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──
+const RATES = { SGD: 1, USD: 1.34, HKD: 0.17 };
+const ACCOUNTS = [
+  { key: 'dbs_fixed', name: 'DBS 定期',  defaultCur: 'SGD' },
+  { key: 'dbs_save',  name: 'DBS 活期',  defaultCur: 'SGD' },
+  { key: 'uob_fixed', name: 'UOB 定期',  defaultCur: 'SGD' },
+  { key: 'uob_save',  name: 'UOB 活期',  defaultCur: 'SGD' },
+  { key: 'longbridge', name: '长桥证券', defaultCur: 'USD' },
+  { key: 'ibkr',       name: 'IBKR',     defaultCur: 'USD' },
+  { key: 'moomoo',     name: 'Moomoo',   defaultCur: 'USD' },
+];
+const INC_LABELS = {
+  salary: '月薪', bonus: '奖金', dividend: '股息/分红',
+  interest: '利息', freelance: '副业', other: '其他'
+};
+
+// ── Storage ──
+const load = k => JSON.parse(localStorage.getItem('fin2_' + k) || 'null');
+const save = (k, v) => localStorage.setItem('fin2_' + k, JSON.stringify(v));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+let assets    = load('assets')    || {};
+let incomes   = load('incomes')   || [];
+let expenses  = load('expenses')  || [];
+let recurring = load('recurring') || [];
+
+// ── Helpers ──
+const fmt = (n, cur) => {
+  const s = { SGD: 'S$', USD: 'US$', HKD: 'HK$' }[cur] || '';
+  return s + Number(n).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const fmtSGD = n => fmt(n, 'SGD');
+const toSGD = (amt, cur) => amt * (RATES[cur] || 1);
+const today = () => new Date().toISOString().slice(0, 10);
+
+// ── Month selector ──
+const mSel = document.getElementById('monthSel');
+const now = new Date();
+for (let i = -11; i <= 1; i++) {
+  const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+  const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  const o = document.createElement('option');
+  o.value = v;
+  o.textContent = d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0');
+  if (i === 0) o.selected = true;
+  mSel.appendChild(o);
+}
+mSel.onchange = () => { propagateRecurring(); render(); };
+const getMonth = () => mSel.value;
+const matchMonth = d => d && d.startsWith(getMonth());
+
+// ── Set default dates ──
+document.getElementById('iDate').value = today();
+document.getElementById('eDate').value = today();
+
+// ── Propagate recurring expenses ──
+function propagateRecurring() {
+  const m = getMonth();
+  recurring.forEach(r => {
+    const exists = expenses.some(e => e.recurringId === r.id && matchMonth(e.date));
+    if (!exists) {
+      expenses.push({
+        id: uid(), recurringId: r.id, name: r.name,
+        amount: r.amount, note: r.note || '',
+        date: m + '-01', recurring: true
+      });
+    }
+  });
+  save('expenses', expenses);
+}
+
+// ── Toggle forms ──
+document.getElementById('toggleInc').onclick = () => {
+  document.getElementById('incForm').classList.toggle('open');
+};
+document.getElementById('toggleExp').onclick = () => {
+  document.getElementById('expForm').classList.toggle('open');
+};
+
+// ── Add income ──
+document.getElementById('iSubmit').onclick = () => {
+  const src = document.getElementById('iSrc').value;
+  const amt = parseFloat(document.getElementById('iAmt').value);
+  const cur = document.getElementById('iCur').value;
+  const date = document.getElementById('iDate').value;
+  const note = document.getElementById('iNote').value.trim();
+  if (isNaN(amt) || amt <= 0 || !date) return;
+  incomes.push({ id: uid(), src, amount: amt, currency: cur, date, note });
+  save('incomes', incomes);
+  document.getElementById('iAmt').value = '';
+  document.getElementById('iNote').value = '';
+  render();
+};
+
+// ── Add expense ──
+document.getElementById('eSubmit').onclick = () => {
+  const name = document.getElementById('eName').value.trim();
+  const amt = parseFloat(document.getElementById('eAmt').value);
+  const date = document.getElementById('eDate').value;
+  const note = document.getElementById('eNote').value.trim();
+  const isRecur = document.getElementById('eRecur').checked;
+  if (!name || isNaN(amt) || amt <= 0 || !date) return;
+
+  if (isRecur) {
+    const rid = uid();
+    recurring.push({ id: rid, name, amount: amt, note });
+    save('recurring', recurring);
+    expenses.push({
+      id: uid(), recurringId: rid, name, amount: amt, note,
+      date: getMonth() + '-01', recurring: true
+    });
+  } else {
+    expenses.push({ id: uid(), name, amount: amt, note, date, recurring: false });
+  }
+  save('expenses', expenses);
+  document.getElementById('eName').value = '';
+  document.getElementById('eAmt').value = '';
+  document.getElementById('eNote').value = '';
+  document.getElementById('eRecur').checked = false;
+  render();
+};
+
+// ── Delete ──
+window.delIncome = id => { incomes = incomes.filter(x => x.id !== id); save('incomes', incomes); render(); };
+window.delExpense = id => {
+  const e = expenses.find(x => x.id === id);
+  if (e && e.recurringId) {
+    if (confirm('这是固定支出。只删本月，还是永久移除？\n\n确定 = 永久移除\n取消 = 只删本月')) {
+      recurring = recurring.filter(r => r.id !== e.recurringId);
+      save('recurring', recurring);
+    }
+  }
+  expenses = expenses.filter(x => x.id !== id);
+  save('expenses', expenses);
+  render();
+};
+
+// ── Asset modal ──
+let editingAsset = null;
+const modal = document.getElementById('assetModal');
+
+function openAssetModal(key) {
+  editingAsset = key;
+  const acc = ACCOUNTS.find(a => a.key === key);
+  const a = assets[key] || {};
+  document.getElementById('modalTitle').textContent = acc.name;
+  document.getElementById('modalSub').textContent = '更新该账户当前余额';
+  document.getElementById('modalAmt').value = a.amount ?? '';
+  document.getElementById('modalCur').value = a.currency || acc.defaultCur;
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('modalAmt').focus(), 200);
+}
+document.getElementById('modalCancel').onclick = () => modal.classList.remove('open');
+modal.onclick = e => { if (e.target === modal) modal.classList.remove('open'); };
+document.getElementById('modalConfirm').onclick = () => {
+  const amt = parseFloat(document.getElementById('modalAmt').value);
+  const cur = document.getElementById('modalCur').value;
+  if (isNaN(amt)) return;
+  assets[editingAsset] = { amount: amt, currency: cur, updated: today() };
+  save('assets', assets);
+  modal.classList.remove('open');
+  render();
+};
+
+// ── Export / Import ──
+document.getElementById('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ assets, incomes, expenses, recurring }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'finance_backup_' + today() + '.json';
+  a.click();
+};
+document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.assets) { assets = d.assets; save('assets', assets); }
+      if (d.incomes) { incomes = d.incomes; save('incomes', incomes); }
+      if (d.expenses) { expenses = d.expenses; save('expenses', expenses); }
+      if (d.recurring) { recurring = d.recurring; save('recurring', recurring); }
+      render();
+    } catch { alert('文件格式错误'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+// ── Render ──
+function render() {
+  // Assets total
+  let totalAssets = 0;
+  const assetByCur = { SGD: 0, USD: 0, HKD: 0 };
+  ACCOUNTS.forEach(acc => {
+    const a = assets[acc.key];
+    if (a) {
+      totalAssets += toSGD(a.amount, a.currency);
+      if (assetByCur[a.currency] !== undefined) assetByCur[a.currency] += a.amount;
+    }
+  });
+
+  // Monthly income
+  const mInc = incomes.filter(x => matchMonth(x.date));
+  let totalInc = 0;
+  mInc.forEach(x => { totalInc += toSGD(x.amount, x.currency); });
+
+  // Monthly expenses
+  const mExp = expenses.filter(x => matchMonth(x.date));
+  const totalExp = mExp.reduce((s, x) => s + x.amount, 0);
+  const net = totalInc - totalExp;
+
+  // Hero
+  document.getElementById('heroVal').textContent = fmtSGD(totalAssets);
+  document.getElementById('heroInc').textContent = fmtSGD(totalInc);
+  document.getElementById('heroExp').textContent = fmtSGD(totalExp);
+  const netEl = document.getElementById('heroNet');
+  netEl.textContent = (net >= 0 ? '+' : '') + fmtSGD(net);
+  netEl.style.color = net >= 0 ? 'var(--accent)' : 'var(--red)';
+
+  // Asset grid
+  const grid = document.getElementById('assetGrid');
+  grid.innerHTML = ACCOUNTS.map(acc => {
+    const a = assets[acc.key];
+    if (a) {
+      return `<div class="asset-card" onclick="openAssetModal('${acc.key}')">
+        <div class="ac-name">${acc.name}</div>
+        <div class="ac-val">${fmt(a.amount, a.currency)}</div>
+        <span class="ac-cur ${a.currency}">${a.currency}</span>
+      </div>`;
+    }
+    return `<div class="asset-card" onclick="openAssetModal('${acc.key}')">
+      <div class="ac-name">${acc.name}</div>
+      <div class="ac-empty">点击设置</div>
+    </div>`;
+  }).join('');
+
+  // Income table
+  const incBody = document.getElementById('incBody');
+  if (!mInc.length) {
+    incBody.innerHTML = '<div class="empty">暂无收入记录</div>';
+  } else {
+    let h = '<table><thead><tr><th>来源</th><th>日期</th><th>备注</th><th class="amt-h">金额</th><th class="del-cell"></th></tr></thead><tbody>';
+    mInc.sort((a, b) => b.date.localeCompare(a.date)).forEach(x => {
+      h += `<tr>
+        <td><strong>${INC_LABELS[x.src] || x.src}</strong></td>
+        <td class="date-cell">${x.date}</td>
+        <td class="note-cell">${x.note || ''}</td>
+        <td class="amt">${fmt(x.amount, x.currency)}<span class="cur-badge ${x.currency}">${x.currency}</span></td>
+        <td class="del-cell"><button class="del-btn" onclick="delIncome('${x.id}')">✕</button></td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    h += `<div class="sec-foot"><span>合计</span><span class="val">${fmtSGD(totalInc)}</span></div>`;
+    incBody.innerHTML = h;
+  }
+
+  // Expense table
+  const expBody = document.getElementById('expBody');
+  if (!mExp.length) {
+    expBody.innerHTML = '<div class="empty">暂无支出记录</div>';
+  } else {
+    const sorted = [...mExp].sort((a, b) => {
+      if (a.recurring && !b.recurring) return -1;
+      if (!a.recurring && b.recurring) return 1;
+      return b.date.localeCompare(a.date);
+    });
+    let h = '<table><thead><tr><th>项目</th><th>日期</th><th>备注</th><th class="amt-h">金额</th><th class="del-cell"></th></tr></thead><tbody>';
+    sorted.forEach(x => {
+      const recurTag = x.recurring ? '<span class="recurring-tag">每月</span>' : '';
+      h += `<tr>
+        <td><strong>${x.name}</strong>${recurTag}</td>
+        <td class="date-cell">${x.date}</td>
+        <td class="note-cell">${x.note || ''}</td>
+        <td class="amt">${fmtSGD(x.amount)}</td>
+        <td class="del-cell"><button class="del-btn" onclick="delExpense('${x.id}')">✕</button></td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    h += `<div class="sec-foot"><span>合计</span><span class="val">${fmtSGD(totalExp)}</span></div>`;
+    expBody.innerHTML = h;
+  }
+}
+
+// ── Keyboard ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const ae = document.activeElement;
+    if (['iAmt','iNote'].includes(ae.id)) document.getElementById('iSubmit').click();
+    if (['eName','eAmt','eNote'].includes(ae.id)) document.getElementById('eSubmit').click();
+    if (ae.id === 'modalAmt') document.getElementById('modalConfirm').click();
+  }
+  if (e.key === 'Escape') modal.classList.remove('open');
+});
+
+// ── Init ──
+propagateRecurring();
+render();
+</script>
+</body>
+</html>
