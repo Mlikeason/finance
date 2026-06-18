@@ -46,29 +46,35 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #d6d3cd; border-radius: 3px; }
 
-  .app { max-width: 780px; margin: 0 auto; padding: 48px 24px 120px; }
+  .app { max-width: 780px; margin: 0 auto; padding: 28px 24px 120px; }
 
-  /* ── Header ── */
-  .header {
-    display: flex; justify-content: flex-end; align-items: center;
-    margin-bottom: 40px;
+  /* ── Net worth hero ── */
+  .hero {
+    margin-bottom: 32px; padding: 0 0 24px; border-bottom: 1px solid var(--border);
   }
-  .header-r { display: flex; gap: 6px; align-items: center; }
+  .hero-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .hero-label {
+    font-size: 12px; color: var(--muted); letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .hero-tools { display: flex; gap: 4px; align-items: center; }
   .month-sel {
-    padding: 7px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--surface); font-size: 13px; cursor: pointer;
+    padding: 4px 24px 4px 8px; border: none; border-bottom: 1px dashed var(--border);
+    background: transparent; font-size: 12px; color: var(--muted); cursor: pointer;
     appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a8a29e' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 10px center;
-    padding-right: 30px;
+    background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23a8a29e' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 4px center;
   }
   .btn-ic {
-    width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--surface); cursor: pointer; display: flex; align-items: center;
+    width: 24px; height: 24px; border: none; border-radius: 4px;
+    background: transparent; cursor: pointer; display: flex; align-items: center;
     justify-content: center; color: var(--muted); transition: all 0.15s;
   }
-  .btn-ic:hover { border-color: var(--text2); color: var(--text); }
-  .btn-ic svg { width: 16px; height: 16px; }
+  .btn-ic:hover { color: var(--text2); }
+  .btn-ic svg { width: 14px; height: 14px; }
 
   /* ── Net worth hero ── */
   .hero {
@@ -111,7 +117,7 @@
   .btn-sm.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 
   /* ── Asset cards ── */
-  .asset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .asset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .asset-card {
     background: var(--surface); border-radius: var(--radius); padding: 18px;
     box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.2s;
@@ -269,11 +275,10 @@
   /* ── Responsive ── */
   @media (max-width: 640px) {
     html { font-size: 14px; }
-    .app { padding: 24px 16px 100px; }
+    .app { padding: 20px 16px 100px; }
     .asset-grid { grid-template-columns: 1fr 1fr; }
     .hero-val { font-size: 28px; }
     .form-grid { grid-template-columns: 1fr; }
-    .header { flex-direction: column; gap: 12px; align-items: flex-start; }
     .hero-sub { flex-wrap: wrap; gap: 10px; }
     .modal { width: calc(100vw - 32px); padding: 24px; }
   }
@@ -282,22 +287,21 @@
 <body>
 <div class="app">
 
-  <div class="header">
-    <div class="header-r">
-      <select class="month-sel" id="monthSel"></select>
-      <button class="btn-ic" id="exportBtn" title="导出">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v9m0 0l-3-3m3 3l3-3M3 13h10"/></svg>
-      </button>
-      <button class="btn-ic" id="importBtn" title="导入">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 11V2m0 0L5 5m3-3l3 3M3 13h10"/></svg>
-      </button>
-      <input type="file" id="importFile" accept=".json" style="display:none">
-    </div>
-  </div>
-
   <!-- Hero -->
   <div class="hero">
-    <div class="hero-label">净资产</div>
+    <div class="hero-top">
+      <div class="hero-label">净资产</div>
+      <div class="hero-tools">
+        <select class="month-sel" id="monthSel"></select>
+        <button class="btn-ic" id="exportBtn" title="导出">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v9m0 0l-3-3m3 3l3-3M3 13h10"/></svg>
+        </button>
+        <button class="btn-ic" id="importBtn" title="导入">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 11V2m0 0L5 5m3-3l3 3M3 13h10"/></svg>
+        </button>
+        <input type="file" id="importFile" accept=".json" style="display:none">
+      </div>
+    </div>
     <div class="hero-val" id="heroVal">—</div>
     <div class="hero-sub">
       <span><i class="dot dot-green"></i>本月收入 <strong id="heroInc">—</strong></span>
@@ -447,11 +451,9 @@ const RATES = { SGD: 1, USD: 1.34, HKD: 0.17 };
 })();
 const ACCOUNTS = [
   { key: 'dbs_fixed', name: 'DBS 定期',  defaultCur: 'SGD' },
-  { key: 'dbs_save',  name: 'DBS 活期',  defaultCur: 'SGD' },
   { key: 'uob_fixed', name: 'UOB 定期',  defaultCur: 'SGD' },
   { key: 'longbridge', name: '长桥证券', defaultCur: 'USD' },
   { key: 'ibkr',       name: 'IBKR',     defaultCur: 'USD' },
-  { key: 'moomoo',     name: 'Moomoo',   defaultCur: 'USD' },
 ];
 
 // ── Storage ──
