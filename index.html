@@ -329,22 +329,6 @@
     </div>
   </div>
 
-  <!-- Trend Chart -->
-  <div class="section">
-    <div class="sec-head">
-      <h2>资产趋势</h2>
-      <div class="chart-ctrl">
-        <button class="active" data-range="30d">30天</button>
-        <button data-range="90d">90天</button>
-        <button data-range="monthly">按月</button>
-      </div>
-    </div>
-    <div class="chart-card" id="chartCard">
-      <div id="chartArea"></div>
-      <div class="chart-tip" id="chartTip"></div>
-    </div>
-  </div>
-
   <!-- Assets -->
   <div class="section">
     <div class="sec-head">
@@ -428,6 +412,24 @@
         </div>
         <button class="btn-submit" id="eSubmit">录入</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Trend Chart -->
+  <div class="section">
+    <div class="sec-head">
+      <h2>资产趋势</h2>
+      <div class="chart-ctrl">
+        <button class="active" data-range="30d">30天</button>
+        <button data-range="90d">90天</button>
+        <button data-range="180d">半年</button>
+        <button data-range="365d">一年</button>
+        <button data-range="monthly">按月</button>
+      </div>
+    </div>
+    <div class="chart-card" id="chartCard">
+      <div id="chartArea"></div>
+      <div class="chart-tip" id="chartTip"></div>
     </div>
   </div>
 
@@ -759,7 +761,7 @@ function renderChart() {
       .slice(-12)
       .map(([m, s]) => ({ ...s, label: m.slice(2).replace('-', '.') }));
   } else {
-    const days = chartRange === '30d' ? 30 : 90;
+    const days = parseInt(chartRange);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -894,7 +896,7 @@ function render() {
 
   // Hero
   document.getElementById('heroVal').textContent = fmtSGD(totalAssets);
-  document.getElementById('heroConv').textContent = `≈ ¥${(totalAssets * CONV_RATES.CNY).toLocaleString('en', {maximumFractionDigits:0})} RMB · $${(totalAssets * CONV_RATES.USD).toLocaleString('en', {maximumFractionDigits:2})} USD`;
+  document.getElementById('heroConv').textContent = `¥${(totalAssets * CONV_RATES.CNY).toLocaleString('en', {maximumFractionDigits:0})} RMB · $${(totalAssets * CONV_RATES.USD).toLocaleString('en', {maximumFractionDigits:2})} USD`;
   document.getElementById('heroInc').textContent = fmtSGD(totalInc);
   document.getElementById('heroExp').textContent = fmtSGD(totalExp);
   const netEl = document.getElementById('heroNet');
