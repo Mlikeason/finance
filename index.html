@@ -564,16 +564,41 @@ const CASH_KEYS = ['dbs_fixed', 'uob_save'];
 const STOCK_KEYS = ['longbridge', 'ibkr'];
 
 // ── Storage ──
-const load = k => JSON.parse(localStorage.getItem('fin2_' + k) || 'null');
-const save = (k, v) => localStorage.setItem('fin2_' + k, JSON.stringify(v));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
-let assets       = load('assets')       || {};
-let incomes      = load('incomes')      || [];
-let expenses     = load('expenses')     || [];
-let recurring    = load('recurring')    || [];
-let snapshots    = load('snapshots')    || [];
-let creditCards  = load('creditCards')  || {};
+let assets       = {};
+let incomes      = [];
+let expenses     = [];
+let recurring    = [];
+let snapshots    = [];
+let creditCards  = {};
+
+let _saveTimer = null;
+function saveToServer() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assets, incomes, expenses, recurring, snapshots, creditCards })
+    }).catch(err => console.error('Save failed:', err));
+  }, 300);
+}
+
+async function loadFromServer() {
+  try {
+    const res = await fetch('/api/data');
+    const d = await res.json();
+    assets      = d.assets      || {};
+    incomes     = d.incomes     || [];
+    expenses    = d.expenses    || [];
+    recurring   = d.recurring   || [];
+    snapshots   = d.snapshots   || [];
+    creditCards = d.creditCards || {};
+  } catch (err) {
+    console.error('Load failed:', err);
+  }
+}
 
 // ── Helpers ──
 const fmt = (n, cur) => {
@@ -613,7 +638,7 @@ function takeSnapshot() {
   snapshots = snapshots.filter(s => s.date !== d);
   snapshots.push({ date: d, total, cash, stock, accounts: accs, creditCards: ccs });
   snapshots.sort((a, b) => a.date.localeCompare(b.date));
-  save('snapshots', snapshots);
+  saveToServer();
 }
 
 // ── Month selector ──
@@ -658,7 +683,7 @@ function propagateRecurring() {
       });
     }
   });
-  save('expenses', expenses);
+  saveToServer();
 }
 
 // ── Toggle forms ──
@@ -677,7 +702,7 @@ document.getElementById('iSubmit').onclick = () => {
   const note = document.getElementById('iNote').value.trim();
   if (isNaN(amt) || amt <= 0 || !date) return;
   incomes.push({ id: uid(), src: 'salary', amount: amt, currency: cur, date, note });
-  save('incomes', incomes);
+  saveToServer();
   document.getElementById('iAmt').value = '';
   document.getElementById('iNote').value = '';
   render();
@@ -695,7 +720,7 @@ document.getElementById('eSubmit').onclick = () => {
   if (isRecur) {
     const rid = uid();
     recurring.push({ id: rid, name, amount: amt, note });
-    save('recurring', recurring);
+    saveToServer();
     expenses.push({
       id: uid(), recurringId: rid, name, amount: amt, note,
       date: getMonth() + '-01', recurring: true
@@ -703,7 +728,7 @@ document.getElementById('eSubmit').onclick = () => {
   } else {
     expenses.push({ id: uid(), name, amount: amt, note, date, recurring: false });
   }
-  save('expenses', expenses);
+  saveToServer();
   document.getElementById('eName').value = '';
   document.getElementById('eAmt').value = '';
   document.getElementById('eNote').value = '';
@@ -712,17 +737,17 @@ document.getElementById('eSubmit').onclick = () => {
 };
 
 // ── Delete ──
-window.delIncome = id => { incomes = incomes.filter(x => x.id !== id); save('incomes', incomes); render(); };
+window.delIncome = id => { incomes = incomes.filter(x => x.id !== id); saveToServer(); render(); };
 window.delExpense = id => {
   const e = expenses.find(x => x.id === id);
   if (e && e.recurringId) {
     if (confirm('这是固定支出。只删本月，还是永久移除？\n\n确定 = 永久移除\n取消 = 只删本月')) {
       recurring = recurring.filter(r => r.id !== e.recurringId);
-      save('recurring', recurring);
+      saveToServer();
     }
   }
   expenses = expenses.filter(x => x.id !== id);
-  save('expenses', expenses);
+  saveToServer();
   render();
 };
 
@@ -748,7 +773,7 @@ document.getElementById('modalConfirm').onclick = () => {
   const cur = document.getElementById('modalCur').value;
   if (isNaN(amt)) return;
   assets[editingAsset] = { amount: amt, currency: cur, updated: today() };
-  save('assets', assets);
+  saveToServer();
   modal.classList.remove('open');
   takeSnapshot();
   render();
@@ -774,7 +799,7 @@ document.getElementById('ccModalConfirm').onclick = () => {
   const amt = parseFloat(document.getElementById('ccModalAmt').value);
   if (isNaN(amt)) return;
   creditCards[editingCC] = amt;
-  save('creditCards', creditCards);
+  saveToServer();
   ccModal.classList.remove('open');
   takeSnapshot();
   render();
@@ -796,12 +821,13 @@ document.getElementById('importFile').onchange = e => {
   reader.onload = ev => {
     try {
       const d = JSON.parse(ev.target.result);
-      if (d.assets) { assets = d.assets; save('assets', assets); }
-      if (d.incomes) { incomes = d.incomes; save('incomes', incomes); }
-      if (d.expenses) { expenses = d.expenses; save('expenses', expenses); }
-      if (d.recurring) { recurring = d.recurring; save('recurring', recurring); }
-      if (d.snapshots) { snapshots = d.snapshots; save('snapshots', snapshots); }
-      if (d.creditCards) { creditCards = d.creditCards; save('creditCards', creditCards); }
+      if (d.assets)      assets      = d.assets;
+      if (d.incomes)     incomes     = d.incomes;
+      if (d.expenses)    expenses    = d.expenses;
+      if (d.recurring)   recurring   = d.recurring;
+      if (d.snapshots)   snapshots   = d.snapshots;
+      if (d.creditCards) creditCards = d.creditCards;
+      saveToServer();
       render();
     } catch { alert('文件格式错误'); }
   };
@@ -1130,8 +1156,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Init ──
-propagateRecurring();
-render();
+loadFromServer().then(() => { propagateRecurring(); render(); });
 </script>
 </body>
 </html>
