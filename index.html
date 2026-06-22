@@ -108,6 +108,15 @@
   .btn-sm.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 
   /* ── Chart ── */
+  .chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .chart-legend { display: flex; gap: 14px; align-items: center; }
+  .chart-legend span {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text2);
+  }
+  .chart-legend .dot-lg { width: 10px; height: 10px; border-radius: 3px; }
+  .dot-cash { background: var(--accent); }
+  .dot-stock { background: #5b7bb4; }
   .chart-ctrl { display: flex; gap: 4px; }
   .chart-ctrl button {
     padding: 3px 10px; font-size: 11px; border: 1px solid var(--border);
@@ -326,6 +335,7 @@
       <span><i class="dot dot-green"></i>本月收入 <strong id="heroInc">—</strong></span>
       <span><i class="dot dot-red"></i>本月支出 <strong id="heroExp">—</strong></span>
       <span><i class="dot dot-blue"></i>结余 <strong id="heroNet">—</strong></span>
+      <span><i class="dot dot-blue"></i>股票占比 <strong id="heroStock">—</strong></span>
     </div>
   </div>
 
@@ -417,8 +427,12 @@
 
   <!-- Trend Chart -->
   <div class="section">
-    <div class="sec-head">
-      <h2>资产趋势</h2>
+    <div class="chart-head">
+      <div class="chart-legend">
+        <h2 style="font-size:13px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:var(--text2);margin:0">资产趋势</h2>
+        <span><i class="dot-lg dot-cash"></i>现金</span>
+        <span><i class="dot-lg dot-stock"></i>股票</span>
+      </div>
       <div class="chart-ctrl">
         <button class="active" data-range="30d">30天</button>
         <button data-range="90d">90天</button>
@@ -499,6 +513,8 @@ const ACC_COLORS = {
   dbs_fixed: '#3d6b4f', uob_save: '#6b9b7f',
   longbridge: '#5b7bb4', ibkr: '#8b7bb4'
 };
+const CASH_KEYS = ['dbs_fixed', 'uob_save'];
+const STOCK_KEYS = ['longbridge', 'ibkr'];
 
 // ── Storage ──
 const load = k => JSON.parse(localStorage.getItem('fin2_' + k) || 'null');
@@ -523,18 +539,21 @@ const today = () => new Date().toISOString().slice(0, 10);
 // ── Snapshot ──
 function takeSnapshot() {
   const d = today();
-  let total = 0;
+  let total = 0, cash = 0, stock = 0;
   const accs = {};
   ACCOUNTS.forEach(acc => {
     const a = assets[acc.key];
     if (a) {
-      total += toSGD(a.amount, a.currency);
+      const sgd = toSGD(a.amount, a.currency);
+      total += sgd;
       accs[acc.key] = { amount: a.amount, currency: a.currency };
+      if (CASH_KEYS.includes(acc.key)) cash += sgd;
+      else if (STOCK_KEYS.includes(acc.key)) stock += sgd;
     }
   });
   if (!Object.keys(accs).length) return;
   snapshots = snapshots.filter(s => s.date !== d);
-  snapshots.push({ date: d, total, accounts: accs });
+  snapshots.push({ date: d, total, cash, stock, accounts: accs });
   snapshots.sort((a, b) => a.date.localeCompare(b.date));
   save('snapshots', snapshots);
 }
@@ -728,6 +747,19 @@ function niceStep(range, ticks) {
   return nice * mag;
 }
 
+function getBreakdown(s) {
+  if (s.cash !== undefined) return { cash: s.cash, stock: s.stock };
+  let cash = 0, stock = 0;
+  if (s.accounts) {
+    Object.entries(s.accounts).forEach(([key, a]) => {
+      const sgd = toSGD(a.amount, a.currency);
+      if (CASH_KEYS.includes(key)) cash += sgd;
+      else if (STOCK_KEYS.includes(key)) stock += sgd;
+    });
+  }
+  return { cash, stock };
+}
+
 function renderChart() {
   const area = document.getElementById('chartArea');
   const tip = document.getElementById('chartTip');
@@ -748,13 +780,18 @@ function renderChart() {
     const todayStr = today();
     const curMonth = todayStr.slice(0, 7);
     if (!groups[curMonth]) {
-      let total = 0;
+      let total = 0, cash = 0, stock = 0;
       const accs = {};
       ACCOUNTS.forEach(acc => {
         const a = assets[acc.key];
-        if (a) { total += toSGD(a.amount, a.currency); accs[acc.key] = { amount: a.amount, currency: a.currency }; }
+        if (a) {
+          const sgd = toSGD(a.amount, a.currency);
+          total += sgd; accs[acc.key] = { amount: a.amount, currency: a.currency };
+          if (CASH_KEYS.includes(acc.key)) cash += sgd;
+          else if (STOCK_KEYS.includes(acc.key)) stock += sgd;
+        }
       });
-      if (Object.keys(accs).length) groups[curMonth] = { date: todayStr, total, accounts: accs };
+      if (Object.keys(accs).length) groups[curMonth] = { date: todayStr, total, cash, stock, accounts: accs };
     }
     data = Object.entries(groups)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -773,7 +810,7 @@ function renderChart() {
     data = filtered.map(s => ({ ...s, label: s.date.slice(5) }));
   }
 
-  if (data.length < 1) {
+  if (!data.length) {
     area.innerHTML = '<div class="empty">数据不足</div>';
     return;
   }
@@ -782,104 +819,99 @@ function renderChart() {
   const P = { t: 16, r: 16, b: 28, l: 58 };
   const cw = W - P.l - P.r, ch = H - P.t - P.b;
 
-  const vals = data.map(d => d.total);
-  let minV = Math.min(...vals), maxV = Math.max(...vals);
-  if (minV === maxV) { minV *= 0.95; maxV *= 1.05; }
-  if (minV > 0) minV = 0;
-  const range = maxV - minV;
-  const yPad = range * 0.08;
-  const yMin = minV - yPad, yMax = maxV + yPad;
+  const maxTotal = Math.max(...data.map(d => d.total));
+  const yMax = maxTotal * 1.1 || 1;
 
-  const sx = i => P.l + (data.length > 1 ? i * cw / (data.length - 1) : cw / 2);
-  const sy = v => P.t + ch - (v - yMin) / (yMax - yMin) * ch;
+  const sy = v => P.t + ch - (v / yMax) * ch;
+  const barW = Math.min(24, cw / data.length * 0.6);
+  const barGap = cw / data.length;
 
-  const step = niceStep(yMax - yMin, 4);
-  const yStart = Math.ceil(yMin / step) * step;
+  const step = niceStep(yMax, 4);
   const yTicks = [];
-  for (let v = yStart; v <= yMax; v += step) yTicks.push(v);
+  for (let v = step; v <= yMax; v += step) yTicks.push(v);
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="font-family:'DM Mono',monospace">`;
 
   yTicks.forEach(v => {
     const y = sy(v);
     svg += `<line x1="${P.l}" y1="${y}" x2="${W - P.r}" y2="${y}" stroke="#e7e5e0" stroke-width="0.5" stroke-dasharray="3,3"/>`;
-    let lbl;
-    if (Math.abs(v) >= 1000) lbl = 'S$' + (v / 1000).toFixed(1) + 'k';
-    else lbl = 'S$' + v.toFixed(0);
+    let lbl = Math.abs(v) >= 1000 ? 'S$' + (v / 1000).toFixed(1) + 'k' : 'S$' + v.toFixed(0);
     svg += `<text x="${P.l - 6}" y="${y + 3.5}" text-anchor="end" fill="#a8a29e" font-size="9.5">${lbl}</text>`;
   });
 
   const maxLabels = 8;
   const labelStep = Math.max(1, Math.ceil(data.length / maxLabels));
+
   data.forEach((d, i) => {
-    if (i % labelStep === 0 || i === data.length - 1) {
-      svg += `<text x="${sx(i)}" y="${H - 6}" text-anchor="middle" fill="#a8a29e" font-size="9">${d.label}</text>`;
+    const { cash, stock } = getBreakdown(d);
+    const x = P.l + i * barGap + (barGap - barW) / 2;
+    const base = sy(0);
+
+    // Cash bar (bottom)
+    const cashH = cash / yMax * ch;
+    const cashY = base - cashH;
+    svg += `<rect x="${x}" y="${cashY}" width="${barW}" height="${cashH}" rx="2" fill="#3d6b4f" class="bar" data-i="${i}" style="cursor:pointer"/>`;
+
+    // Stock bar (stacked on top)
+    const stockH = stock / yMax * ch;
+    const stockY = cashY - stockH;
+    if (stock > 0) {
+      svg += `<rect x="${x}" y="${stockY}" width="${barW}" height="${stockH}" rx="2" fill="#5b7bb4" class="bar" data-i="${i}" style="cursor:pointer"/>`;
     }
-  });
 
-  let areaD = `M ${sx(0)} ${sy(data[0].total)}`;
-  data.forEach((d, i) => { if (i > 0) areaD += ` L ${sx(i)} ${sy(d.total)}`; });
-  areaD += ` L ${sx(data.length - 1)} ${sy(yMin)} L ${sx(0)} ${sy(yMin)} Z`;
-  svg += `<path d="${areaD}" fill="url(#areaGrad)" opacity="0.15"/>`;
-  svg += `<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3d6b4f"/><stop offset="100%" stop-color="#3d6b4f" stop-opacity="0"/></linearGradient></defs>`;
-
-  let lineD = `M ${sx(0)} ${sy(data[0].total)}`;
-  data.forEach((d, i) => { if (i > 0) lineD += ` L ${sx(i)} ${sy(d.total)}`; });
-  svg += `<path d="${lineD}" fill="none" stroke="#3d6b4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-
-  data.forEach((d, i) => {
-    svg += `<circle cx="${sx(i)}" cy="${sy(d.total)}" r="3.5" fill="#fff" stroke="#3d6b4f" stroke-width="1.5" class="cd" data-i="${i}" style="cursor:pointer"/>`;
+    // X labels
+    if (i % labelStep === 0 || i === data.length - 1) {
+      svg += `<text x="${x + barW / 2}" y="${H - 6}" text-anchor="middle" fill="#a8a29e" font-size="9">${d.label}</text>`;
+    }
   });
 
   svg += '</svg>';
   area.innerHTML = svg;
 
-  area.querySelectorAll('.cd').forEach(dot => {
+  area.querySelectorAll('.bar').forEach(bar => {
     const handler = e => {
       e.stopPropagation();
-      const i = +dot.dataset.i;
+      const i = +bar.dataset.i;
       const d = data[i];
-      const cx = +dot.getAttribute('cx'), cy = +dot.getAttribute('cy');
-      dot.setAttribute('r', '5');
-      let accHtml = '';
-      if (d.accounts) {
-        accHtml = '<div class="ta">';
-        ACCOUNTS.forEach(acc => {
-          if (d.accounts[acc.key]) {
-            const a = d.accounts[acc.key];
-            accHtml += `${acc.name}: ${fmt(a.amount, a.currency)}<br>`;
-          }
-        });
-        accHtml += '</div>';
-      }
-      tip.innerHTML = `<div class="td">${d.date}</div><div class="tv">${fmtSGD(d.total)}</div>${accHtml}`;
+      const { cash, stock } = getBreakdown(d);
+      const ratio = d.total > 0 ? (stock / d.total * 100).toFixed(1) : '0';
+      tip.innerHTML = `<div class="td">${d.date}</div>
+        <div class="tv">${fmtSGD(d.total)}</div>
+        <div class="ta">
+          现金: ${fmtSGD(cash)}<br>
+          股票: ${fmtSGD(stock)}<br>
+          股票占比: ${ratio}%
+        </div>`;
       tip.classList.add('show');
-      const card = document.getElementById('chartCard');
-      const rect = card.getBoundingClientRect();
       const svgEl = area.querySelector('svg');
       const svgRect = svgEl.getBoundingClientRect();
-      const px = (cx / W) * svgRect.width;
-      const py = (cy / H) * svgRect.height;
+      const bx = +bar.getAttribute('x') + (+bar.getAttribute('width') / 2);
+      const by = +bar.getAttribute('y');
+      const px = (bx / W) * svgRect.width;
+      const py = (by / H) * svgRect.height;
       let left = px + 14;
       if (left + 180 > svgRect.width) left = px - 180;
       tip.style.left = Math.max(0, left) + 'px';
       tip.style.top = Math.max(0, py - 10) + 'px';
     };
-    dot.addEventListener('mouseenter', handler);
-    dot.addEventListener('click', handler);
-    dot.addEventListener('mouseleave', () => { dot.setAttribute('r', '3.5'); tip.classList.remove('show'); });
+    bar.addEventListener('mouseenter', handler);
+    bar.addEventListener('click', handler);
+    bar.addEventListener('mouseleave', () => tip.classList.remove('show'));
   });
 }
 
 // ── Render ──
 function render() {
   // Assets total
-  let totalAssets = 0;
+  let totalAssets = 0, cashTotal = 0, stockTotal = 0;
   const assetByCur = { SGD: 0, USD: 0, HKD: 0 };
   ACCOUNTS.forEach(acc => {
     const a = assets[acc.key];
     if (a) {
-      totalAssets += toSGD(a.amount, a.currency);
+      const sgd = toSGD(a.amount, a.currency);
+      totalAssets += sgd;
+      if (CASH_KEYS.includes(acc.key)) cashTotal += sgd;
+      else if (STOCK_KEYS.includes(acc.key)) stockTotal += sgd;
       if (assetByCur[a.currency] !== undefined) assetByCur[a.currency] += a.amount;
     }
   });
@@ -902,6 +934,8 @@ function render() {
   const netEl = document.getElementById('heroNet');
   netEl.textContent = (net >= 0 ? '+' : '') + fmtSGD(net);
   netEl.style.color = net >= 0 ? 'var(--accent)' : 'var(--red)';
+  const stockRatio = totalAssets > 0 ? (stockTotal / totalAssets * 100).toFixed(1) + '%' : '—';
+  document.getElementById('heroStock').textContent = stockRatio;
 
   // Asset grid
   const grid = document.getElementById('assetGrid');
