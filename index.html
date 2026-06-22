@@ -1159,7 +1159,14 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Init ──
-loadFromServer().then(() => { propagateRecurring(); render(); });
+loadFromServer().then(() => {
+  propagateRecurring();
+  const d = today();
+  if (!snapshots.some(s => s.date === d) && Object.keys(assets).length > 0) {
+    takeSnapshot();
+  }
+  render();
+});
 </script>
 </body>
 </html>
