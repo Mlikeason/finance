@@ -1,8 +1,1 @@
-{
-  "assets": {},
-  "incomes": [],
-  "expenses": [],
-  "recurring": [],
-  "snapshots": [],
-  "creditCards": {}
-}
+{"assets":{"dbs_fixed":{"amount":214177.98,"currency":"USD","updated":"2026-06-22"},"uob_save":{"amount":16189.85,"currency":"SGD","updated":"2026-06-22"},"longbridge":{"amount":223454,"currency":"USD","updated":"2026-06-22"},"ibkr":{"amount":119213,"currency":"USD","updated":"2026-06-22"}},"incomes":[],"expenses":[],"recurring":[],"snapshots":[{"date":"2026-06-22","total":756363.2032000001,"cash":303188.3432,"stock":459173.78,"accounts":{"dbs_fixed":{"amount":214177.98,"currency":"USD"},"uob_save":{"amount":16189.85,"currency":"SGD"},"longbridge":{"amount":223454,"currency":"USD"},"ibkr":{"amount":119213,"currency":"USD"}},"creditCards":{"uob_one":634.8,"uob_metal":3598.89,"uob_lazada":620.22,"citi":1145.01}}],"creditCards":{"uob_one":634.8,"uob_metal":3598.89,"uob_lazada":620.22,"citi":1145.01}}
