@@ -857,6 +857,10 @@ function renderChart() {
     const stockY = cashY - stockH;
     if (stock > 0) {
       svg += `<rect x="${x}" y="${stockY}" width="${barW}" height="${stockH}" rx="2" fill="#5b7bb4" class="bar" data-i="${i}" style="cursor:pointer"/>`;
+
+      // Stock percentage label
+      const pct = d.total > 0 ? (stock / d.total * 100).toFixed(0) : '0';
+      svg += `<text x="${x + barW / 2}" y="${stockY - 4}" text-anchor="middle" fill="#5b7bb4" font-size="9" font-weight="500">${pct}%</text>`;
     }
 
     // X labels
