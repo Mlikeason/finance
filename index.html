@@ -169,6 +169,24 @@
   .ac-cur.HKD { background: #f5ecd7; color: #7c6a1e; }
   .ac-empty { color: var(--muted); font-size: 13px; font-style: italic; }
 
+  /* ── Credit card cards ── */
+  .cc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .cc-card {
+    background: var(--surface); border-radius: var(--radius); padding: 18px;
+    box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.2s;
+    border: 1px solid var(--border2);
+  }
+  .cc-card:hover { box-shadow: var(--shadow-lg); }
+  .cc-name {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.04em;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .cc-val {
+    font-family: var(--mono); font-size: 18px; font-weight: 500;
+    letter-spacing: -0.01em; color: var(--red);
+  }
+  .cc-empty { color: var(--muted); font-size: 13px; font-style: italic; }
+
   /* ── Asset update modal ── */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(28,25,23,0.3); z-index: 100;
@@ -305,6 +323,7 @@
     html { font-size: 14px; }
     .app { padding: 20px 16px 100px; }
     .asset-grid { grid-template-columns: 1fr 1fr; }
+    .cc-grid { grid-template-columns: 1fr 1fr; }
     .hero-val { font-size: 28px; }
     .form-grid { grid-template-columns: 1fr; }
     .hero-sub { flex-wrap: wrap; gap: 10px; }
@@ -345,6 +364,14 @@
       <h2>资产账户</h2>
     </div>
     <div class="asset-grid" id="assetGrid"></div>
+  </div>
+
+  <!-- Credit Cards -->
+  <div class="section">
+    <div class="sec-head">
+      <h2>信用卡账单</h2>
+    </div>
+    <div class="cc-grid" id="ccGrid"></div>
   </div>
 
   <!-- Income -->
@@ -469,6 +496,20 @@
   </div>
 </div>
 
+<!-- Credit card modal -->
+<div class="modal-bg" id="ccModal">
+  <div class="modal">
+    <h3 id="ccModalTitle">更新账单</h3>
+    <div class="sub" id="ccModalSub"></div>
+    <label>本月账单金额 (SGD)</label>
+    <input type="number" id="ccModalAmt" placeholder="0.00" step="0.01">
+    <div class="modal-btns">
+      <button class="cancel" id="ccModalCancel">取消</button>
+      <button class="confirm" id="ccModalConfirm">保存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Config ──
 const RATES = { SGD: 1, USD: 1.34, HKD: 0.17, CNY: 0.189 };
@@ -509,6 +550,13 @@ const ACCOUNTS = [
   { key: 'ibkr',       name: 'IBKR',     defaultCur: 'USD' },
 ];
 
+const CREDIT_CARDS = [
+  { key: 'uob_one',    name: 'UOB ONE' },
+  { key: 'uob_metal',  name: 'UOB Metal' },
+  { key: 'uob_lazada', name: 'UOB Lazada' },
+  { key: 'citi',       name: 'Citi' },
+];
+
 const ACC_COLORS = {
   dbs_fixed: '#3d6b4f', uob_save: '#6b9b7f',
   longbridge: '#5b7bb4', ibkr: '#8b7bb4'
@@ -521,11 +569,12 @@ const load = k => JSON.parse(localStorage.getItem('fin2_' + k) || 'null');
 const save = (k, v) => localStorage.setItem('fin2_' + k, JSON.stringify(v));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
-let assets    = load('assets')    || {};
-let incomes   = load('incomes')   || [];
-let expenses  = load('expenses')  || [];
-let recurring = load('recurring') || [];
-let snapshots = load('snapshots') || [];
+let assets       = load('assets')       || {};
+let incomes      = load('incomes')      || [];
+let expenses     = load('expenses')     || [];
+let recurring    = load('recurring')    || [];
+let snapshots    = load('snapshots')    || [];
+let creditCards  = load('creditCards')  || {};
 
 // ── Helpers ──
 const fmt = (n, cur) => {
@@ -551,9 +600,19 @@ function takeSnapshot() {
       else if (STOCK_KEYS.includes(acc.key)) stock += sgd;
     }
   });
+  // Subtract credit card bills
+  let ccTotal = 0;
+  const ccs = {};
+  CREDIT_CARDS.forEach(cc => {
+    if (creditCards[cc.key]) {
+      ccTotal += creditCards[cc.key];
+      ccs[cc.key] = creditCards[cc.key];
+    }
+  });
+  total -= ccTotal;
   if (!Object.keys(accs).length) return;
   snapshots = snapshots.filter(s => s.date !== d);
-  snapshots.push({ date: d, total, cash, stock, accounts: accs });
+  snapshots.push({ date: d, total, cash, stock, accounts: accs, creditCards: ccs });
   snapshots.sort((a, b) => a.date.localeCompare(b.date));
   save('snapshots', snapshots);
 }
@@ -696,9 +755,35 @@ document.getElementById('modalConfirm').onclick = () => {
   render();
 };
 
+// ── Credit card modal ──
+let editingCC = null;
+const ccModal = document.getElementById('ccModal');
+
+function openCCModal(key) {
+  editingCC = key;
+  const cc = CREDIT_CARDS.find(c => c.key === key);
+  const bill = creditCards[key];
+  document.getElementById('ccModalTitle').textContent = cc.name;
+  document.getElementById('ccModalSub').textContent = '更新本月账单金额';
+  document.getElementById('ccModalAmt').value = bill ?? '';
+  ccModal.classList.add('open');
+  setTimeout(() => document.getElementById('ccModalAmt').focus(), 200);
+}
+document.getElementById('ccModalCancel').onclick = () => ccModal.classList.remove('open');
+ccModal.onclick = e => { if (e.target === ccModal) ccModal.classList.remove('open'); };
+document.getElementById('ccModalConfirm').onclick = () => {
+  const amt = parseFloat(document.getElementById('ccModalAmt').value);
+  if (isNaN(amt)) return;
+  creditCards[editingCC] = amt;
+  save('creditCards', creditCards);
+  ccModal.classList.remove('open');
+  takeSnapshot();
+  render();
+};
+
 // ── Export / Import ──
 document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({ assets, incomes, expenses, recurring, snapshots }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ assets, incomes, expenses, recurring, snapshots, creditCards }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'finance_backup_' + today() + '.json';
@@ -717,6 +802,7 @@ document.getElementById('importFile').onchange = e => {
       if (d.expenses) { expenses = d.expenses; save('expenses', expenses); }
       if (d.recurring) { recurring = d.recurring; save('recurring', recurring); }
       if (d.snapshots) { snapshots = d.snapshots; save('snapshots', snapshots); }
+      if (d.creditCards) { creditCards = d.creditCards; save('creditCards', creditCards); }
       render();
     } catch { alert('文件格式错误'); }
   };
@@ -920,6 +1006,13 @@ function render() {
     }
   });
 
+  // Credit card total (liabilities)
+  let ccTotal = 0;
+  CREDIT_CARDS.forEach(cc => {
+    if (creditCards[cc.key]) ccTotal += creditCards[cc.key];
+  });
+  totalAssets -= ccTotal;
+
   // Monthly income
   const mInc = incomes.filter(x => matchMonth(x.date));
   let totalInc = 0;
@@ -955,6 +1048,22 @@ function render() {
     return `<div class="asset-card" onclick="openAssetModal('${acc.key}')">
       <div class="ac-name">${acc.name}</div>
       <div class="ac-empty">点击设置</div>
+    </div>`;
+  }).join('');
+
+  // Credit card grid
+  const ccGrid = document.getElementById('ccGrid');
+  ccGrid.innerHTML = CREDIT_CARDS.map(cc => {
+    const bill = creditCards[cc.key];
+    if (bill) {
+      return `<div class="cc-card" onclick="openCCModal('${cc.key}')">
+        <div class="cc-name">${cc.name}</div>
+        <div class="cc-val">${fmtSGD(bill)}</div>
+      </div>`;
+    }
+    return `<div class="cc-card" onclick="openCCModal('${cc.key}')">
+      <div class="cc-name">${cc.name}</div>
+      <div class="cc-empty">点击设置</div>
     </div>`;
   }).join('');
 
@@ -1013,8 +1122,12 @@ document.addEventListener('keydown', e => {
     if (['iAmt','iNote'].includes(ae.id)) document.getElementById('iSubmit').click();
     if (['eName','eAmt','eNote'].includes(ae.id)) document.getElementById('eSubmit').click();
     if (ae.id === 'modalAmt') document.getElementById('modalConfirm').click();
+    if (ae.id === 'ccModalAmt') document.getElementById('ccModalConfirm').click();
   }
-  if (e.key === 'Escape') modal.classList.remove('open');
+  if (e.key === 'Escape') {
+    modal.classList.remove('open');
+    ccModal.classList.remove('open');
+  }
 });
 
 // ── Init ──
