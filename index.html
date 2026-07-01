@@ -383,43 +383,9 @@
   <div class="section">
     <div class="sec-head">
       <h2>固定收支</h2>
-      <div class="actions">
-        <button class="btn-sm" id="toggleFixed">+ 添加</button>
-      </div>
     </div>
     <div class="card">
       <div id="fixedBody"></div>
-      <div class="add-form" id="fixedForm">
-        <div class="form-grid">
-          <div>
-            <label>类型</label>
-            <select id="fType">
-              <option value="income">收入</option>
-              <option value="expense">支出</option>
-            </select>
-          </div>
-          <div>
-            <label>名称</label>
-            <input type="text" id="fName" placeholder="如：工资、房租">
-          </div>
-          <div>
-            <label>金额 (SGD)</label>
-            <input type="number" id="fAmt" placeholder="0.00" step="0.01" min="0">
-          </div>
-          <div>
-            <label>每月几号</label>
-            <input type="number" id="fDay" placeholder="1-28" min="1" max="28">
-          </div>
-          <div class="full">
-            <label>频率</label>
-            <select id="fFreq">
-              <option value="monthly">每月</option>
-              <option value="quarterly_1_4_7_10">季度 (1/4/7/10月)</option>
-            </select>
-          </div>
-        </div>
-        <button class="btn-submit" id="fSubmit">添加</button>
-      </div>
     </div>
   </div>
 
@@ -540,12 +506,12 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 let assets       = {};
 let snapshots    = [];
 let creditCards  = {};
-let fixedItems   = [];
 
-const DEFAULT_FIXED_ITEMS = [
+const FIXED_ITEMS = [
   { id: 'def_salary',  type: 'income',  name: '工资',       amount: 19115,   day: 27, freq: 'monthly' },
-  { id: 'def_ltc',     type: 'income',  name: 'LTC',        amount: 12000,   day: 1,  freq: 'quarterly_1_4_7_10' },
+  { id: 'def_ltc',     type: 'income',  name: 'LTC',        amount: 4000,    day: 27, freq: 'monthly' },
   { id: 'def_car',     type: 'expense', name: '车贷',       amount: 1861,    day: 24, freq: 'monthly' },
+  { id: 'def_prud',    type: 'expense', name: '保诚',       amount: 2500,    day: 24, freq: 'monthly' },
   { id: 'def_tax',     type: 'expense', name: '税',         amount: 5142.72, day: 5,  freq: 'monthly' },
   { id: 'def_cryo',    type: 'expense', name: 'CRYOVIVA',   amount: 227.52,  day: 29, freq: 'monthly' },
   { id: 'def_gpt1',    type: 'expense', name: 'ChatGPT',    amount: 30,      day: 19, freq: 'monthly' },
@@ -561,7 +527,7 @@ function saveToServer() {
     fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assets, snapshots, creditCards, fixedItems })
+      body: JSON.stringify({ assets, snapshots, creditCards })
     }).catch(err => console.error('Save failed:', err));
   }, 300);
 }
@@ -573,7 +539,6 @@ async function loadFromServer() {
     assets      = d.assets      || {};
     snapshots   = d.snapshots   || [];
     creditCards = d.creditCards || {};
-    fixedItems  = d.fixedItems  && d.fixedItems.length ? d.fixedItems : DEFAULT_FIXED_ITEMS;
   } catch (err) {
     console.error('Load failed:', err);
   }
@@ -635,32 +600,6 @@ for (let i = -11; i <= 1; i++) {
 mSel.onchange = () => { render(); };
 const getMonth = () => mSel.value;
 
-// ── Fixed items ──
-document.getElementById('toggleFixed').onclick = () => {
-  document.getElementById('fixedForm').classList.toggle('open');
-};
-
-document.getElementById('fSubmit').onclick = () => {
-  const type = document.getElementById('fType').value;
-  const name = document.getElementById('fName').value.trim();
-  const amt = parseFloat(document.getElementById('fAmt').value);
-  const day = parseInt(document.getElementById('fDay').value);
-  const freq = document.getElementById('fFreq').value;
-  if (!name || isNaN(amt) || amt <= 0 || isNaN(day) || day < 1 || day > 28) return;
-  fixedItems.push({ id: uid(), type, name, amount: amt, day, freq });
-  saveToServer();
-  document.getElementById('fName').value = '';
-  document.getElementById('fAmt').value = '';
-  document.getElementById('fDay').value = '';
-  render();
-};
-
-window.delFixed = id => {
-  fixedItems = fixedItems.filter(x => x.id !== id);
-  saveToServer();
-  render();
-};
-
 // ── Asset modal ──
 let editingAsset = null;
 const modal = document.getElementById('assetModal');
@@ -717,7 +656,7 @@ document.getElementById('ccModalConfirm').onclick = () => {
 
 // ── Export / Import ──
 document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({ assets, snapshots, creditCards, fixedItems }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ assets, snapshots, creditCards }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'finance_backup_' + today() + '.json';
@@ -734,7 +673,6 @@ document.getElementById('importFile').onchange = e => {
       if (d.assets)      assets      = d.assets;
       if (d.snapshots)   snapshots   = d.snapshots;
       if (d.creditCards) creditCards = d.creditCards;
-      if (d.fixedItems)  fixedItems  = d.fixedItems;
       saveToServer();
       render();
     } catch { alert('文件格式错误'); }
@@ -1002,57 +940,51 @@ function render() {
 
   // Fixed items
   const curMonth = parseInt(getMonth().split('-')[1]);
-  const activeItems = fixedItems.filter(f => {
+  const activeItems = FIXED_ITEMS.filter(f => {
     if (f.freq === 'monthly') return true;
     if (f.freq === 'quarterly_1_4_7_10') return [1, 4, 7, 10].includes(curMonth);
     return true;
   });
 
   const fixedBody = document.getElementById('fixedBody');
-  if (!activeItems.length) {
-    fixedBody.innerHTML = '<div class="empty">暂无固定收支</div>';
-  } else {
-    const incItems = activeItems.filter(f => f.type === 'income').sort((a, b) => a.day - b.day);
-    const expItems = activeItems.filter(f => f.type === 'expense').sort((a, b) => a.day - b.day);
-    let totalInc = 0, totalExp = 0;
+  const incItems = activeItems.filter(f => f.type === 'income').sort((a, b) => a.day - b.day);
+  const expItems = activeItems.filter(f => f.type === 'expense').sort((a, b) => a.day - b.day);
+  let totalInc = 0, totalExp = 0;
 
-    let h = '';
-    if (incItems.length) {
-      h += '<div class="fixed-group"><div class="fixed-label">收入</div>';
-      h += '<table><tbody>';
-      incItems.forEach(x => {
-        totalInc += x.amount;
-        const freqLabel = x.freq === 'monthly' ? '每月' : '季度';
-        h += `<tr>
-          <td class="date-cell">${x.day}日</td>
-          <td><strong>${x.name}</strong><span class="recurring-tag">${freqLabel}</span></td>
-          <td class="amt">${fmtSGD(x.amount)}</td>
-          <td class="del-cell"><button class="del-btn" onclick="delFixed('${x.id}')">✕</button></td>
-        </tr>`;
-      });
-      h += '</tbody></table></div>';
-    }
-    if (expItems.length) {
-      h += '<div class="fixed-group"><div class="fixed-label">支出</div>';
-      h += '<table><tbody>';
-      expItems.forEach(x => {
-        totalExp += x.amount;
-        const freqLabel = x.freq === 'monthly' ? '每月' : '季度';
-        h += `<tr>
-          <td class="date-cell">${x.day}日</td>
-          <td><strong>${x.name}</strong><span class="recurring-tag">${freqLabel}</span></td>
-          <td class="amt">${fmtSGD(x.amount)}</td>
-          <td class="del-cell"><button class="del-btn" onclick="delFixed('${x.id}')">✕</button></td>
-        </tr>`;
-      });
-      h += '</tbody></table></div>';
-    }
-    h += `<div class="sec-foot">
-      <span>结余</span>
-      <span class="val" style="color:${totalInc - totalExp >= 0 ? 'var(--accent)' : 'var(--red)'}">${(totalInc - totalExp >= 0 ? '+' : '')}${fmtSGD(totalInc - totalExp)}</span>
-    </div>`;
-    fixedBody.innerHTML = h;
+  let h = '';
+  if (incItems.length) {
+    h += '<div class="fixed-group"><div class="fixed-label">收入</div>';
+    h += '<table><tbody>';
+    incItems.forEach(x => {
+      totalInc += x.amount;
+      const freqLabel = x.freq === 'monthly' ? '每月' : '季度';
+      h += `<tr>
+        <td class="date-cell">${x.day}日</td>
+        <td><strong>${x.name}</strong><span class="recurring-tag">${freqLabel}</span></td>
+        <td class="amt">${fmtSGD(x.amount)}</td>
+      </tr>`;
+    });
+    h += '</tbody></table></div>';
   }
+  if (expItems.length) {
+    h += '<div class="fixed-group"><div class="fixed-label">支出</div>';
+    h += '<table><tbody>';
+    expItems.forEach(x => {
+      totalExp += x.amount;
+      const freqLabel = x.freq === 'monthly' ? '每月' : '季度';
+      h += `<tr>
+        <td class="date-cell">${x.day}日</td>
+        <td><strong>${x.name}</strong><span class="recurring-tag">${freqLabel}</span></td>
+        <td class="amt">${fmtSGD(x.amount)}</td>
+      </tr>`;
+    });
+    h += '</tbody></table></div>';
+  }
+  h += `<div class="sec-foot">
+    <span>结余</span>
+    <span class="val" style="color:${totalInc - totalExp >= 0 ? 'var(--accent)' : 'var(--red)'}">${(totalInc - totalExp >= 0 ? '+' : '')}${fmtSGD(totalInc - totalExp)}</span>
+  </div>`;
+  fixedBody.innerHTML = h;
 
   renderChart();
 }
@@ -1061,7 +993,6 @@ function render() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     const ae = document.activeElement;
-    if (['fName','fAmt','fDay'].includes(ae.id)) document.getElementById('fSubmit').click();
     if (ae.id === 'modalAmt') document.getElementById('modalConfirm').click();
     if (ae.id === 'ccModalAmt') document.getElementById('ccModalConfirm').click();
   }
