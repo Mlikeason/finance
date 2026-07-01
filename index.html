@@ -933,15 +933,18 @@ function renderChart() {
   const cw = W - P.l - P.r, ch = H - P.t - P.b;
 
   const maxTotal = Math.max(...data.map(d => d.total));
-  const yMax = maxTotal * 1.1 || 1;
+  const minTotal = Math.min(...data.map(d => d.total));
+  const range = maxTotal - minTotal || 1;
+  const yMin = minTotal - range * 0.1;
+  const yMax = maxTotal + range * 0.1;
 
-  const sy = v => P.t + ch - (v / yMax) * ch;
+  const sy = v => P.t + ch - ((v - yMin) / (yMax - yMin)) * ch;
   const barW = Math.min(24, cw / data.length * 0.6);
   const barGap = cw / data.length;
 
-  const step = niceStep(yMax, 4);
+  const step = niceStep(yMax - yMin, 4);
   const yTicks = [];
-  for (let v = step; v <= yMax; v += step) yTicks.push(v);
+  for (let v = Math.ceil(yMin / step) * step; v <= yMax; v += step) yTicks.push(v);
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="font-family:'DM Mono',monospace">`;
 
@@ -958,15 +961,15 @@ function renderChart() {
   data.forEach((d, i) => {
     const { cash, stock } = getBreakdown(d);
     const x = P.l + i * barGap + (barGap - barW) / 2;
-    const base = sy(0);
+    const base = sy(yMin);
 
     // Cash bar (bottom)
-    const cashH = cash / yMax * ch;
+    const cashH = (cash - yMin) / (yMax - yMin) * ch;
     const cashY = base - cashH;
     svg += `<rect x="${x}" y="${cashY}" width="${barW}" height="${cashH}" rx="2" fill="#3d6b4f" class="bar" data-i="${i}" style="cursor:pointer"/>`;
 
     // Stock bar (stacked on top)
-    const stockH = stock / yMax * ch;
+    const stockH = stock / (yMax - yMin) * ch;
     const stockY = cashY - stockH;
     if (stock > 0) {
       svg += `<rect x="${x}" y="${stockY}" width="${barW}" height="${stockH}" rx="2" fill="#5b7bb4" class="bar" data-i="${i}" style="cursor:pointer"/>`;
