@@ -15,8 +15,8 @@ const server = http.createServer((req, res) => {
       fs.createReadStream(DATA_FILE).pipe(res);
     } catch {
       res.end(JSON.stringify({
-        assets: {}, incomes: [], expenses: [],
-        recurring: [], snapshots: [], creditCards: {}
+        assets: {}, snapshots: [],
+        creditCards: {}, fixedItems: []
       }));
     }
   } else if (req.method === 'POST' && req.url === '/api/data') {

@@ -278,6 +278,12 @@
     background: #faf9f7;
   }
   .sec-foot .val { font-family: var(--mono); }
+  .fixed-group { padding: 0 16px; }
+  .fixed-group + .fixed-group { border-top: 1px solid var(--border2); }
+  .fixed-label {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); padding: 12px 0 4px;
+  }
 
   /* ── Add form ── */
   .add-form {
@@ -352,10 +358,7 @@
     <div class="hero-val" id="heroVal">—</div>
     <div class="hero-conv" id="heroConv"></div>
     <div class="hero-sub">
-      <span><i class="dot dot-green"></i>本月收入 <strong id="heroInc">—</strong></span>
-      <span><i class="dot dot-red"></i>本月支出 <strong id="heroExp">—</strong></span>
       <span><i class="dot dot-amber"></i>信用卡账单 <strong id="heroCC">—</strong></span>
-      <span><i class="dot dot-blue"></i>结余 <strong id="heroNet">—</strong></span>
       <span><i class="dot dot-blue"></i>股票占比 <strong id="heroStock">—</strong></span>
     </div>
   </div>
@@ -376,80 +379,46 @@
     <div class="cc-grid" id="ccGrid"></div>
   </div>
 
-  <!-- Income -->
+  <!-- Fixed Income & Expenses -->
   <div class="section">
     <div class="sec-head">
-      <h2>本月收入</h2>
+      <h2>固定收支</h2>
       <div class="actions">
-        <button class="btn-sm" id="toggleInc">+ 添加</button>
+        <button class="btn-sm" id="toggleFixed">+ 添加</button>
       </div>
     </div>
     <div class="card">
-      <div id="incBody"></div>
-      <div class="add-form" id="incForm">
+      <div id="fixedBody"></div>
+      <div class="add-form" id="fixedForm">
         <div class="form-grid">
           <div>
-            <label>金额</label>
-            <input type="number" id="iAmt" placeholder="0.00" step="0.01" min="0">
-          </div>
-          <div>
-            <label>币种</label>
-            <select id="iCur">
-              <option value="SGD">SGD</option>
-              <option value="USD">USD</option>
-              <option value="HKD">HKD</option>
+            <label>类型</label>
+            <select id="fType">
+              <option value="income">收入</option>
+              <option value="expense">支出</option>
             </select>
           </div>
           <div>
-            <label>日期</label>
-            <input type="date" id="iDate">
-          </div>
-          <div>
-            <label>备注</label>
-            <input type="text" id="iNote" placeholder="可选">
-          </div>
-        </div>
-        <button class="btn-submit" id="iSubmit">录入</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Expenses -->
-  <div class="section">
-    <div class="sec-head">
-      <h2>本月支出</h2>
-      <div class="actions">
-        <button class="btn-sm" id="toggleExp">+ 添加</button>
-      </div>
-    </div>
-    <div class="card">
-      <div id="expBody"></div>
-      <div class="add-form" id="expForm">
-        <div class="form-grid">
-          <div class="full">
-            <label>项目</label>
-            <input type="text" id="eName" placeholder="如：房租、保险、超市">
+            <label>名称</label>
+            <input type="text" id="fName" placeholder="如：工资、房租">
           </div>
           <div>
             <label>金额 (SGD)</label>
-            <input type="number" id="eAmt" placeholder="0.00" step="0.01" min="0">
+            <input type="number" id="fAmt" placeholder="0.00" step="0.01" min="0">
           </div>
           <div>
-            <label>日期</label>
-            <input type="date" id="eDate">
+            <label>每月几号</label>
+            <input type="number" id="fDay" placeholder="1-28" min="1" max="28">
           </div>
           <div class="full">
-            <div class="form-check">
-              <input type="checkbox" id="eRecur">
-              <label for="eRecur">每月固定支出（自动循环）</label>
-            </div>
-          </div>
-          <div class="full">
-            <label>备注</label>
-            <input type="text" id="eNote" placeholder="可选">
+            <label>频率</label>
+            <select id="fFreq">
+              <option value="monthly">每月</option>
+              <option value="quarterly_1_4_7_10">季度 (1/4/7/10月)</option>
+            </select>
           </div>
         </div>
-        <button class="btn-submit" id="eSubmit">录入</button>
+        <button class="btn-submit" id="fSubmit">添加</button>
       </div>
     </div>
   </div>
@@ -569,11 +538,21 @@ const STOCK_KEYS = ['longbridge', 'ibkr'];
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 let assets       = {};
-let incomes      = [];
-let expenses     = [];
-let recurring    = [];
 let snapshots    = [];
 let creditCards  = {};
+let fixedItems   = [];
+
+const DEFAULT_FIXED_ITEMS = [
+  { id: 'def_salary',  type: 'income',  name: '工资',       amount: 19115,   day: 27, freq: 'monthly' },
+  { id: 'def_ltc',     type: 'income',  name: 'LTC',        amount: 12000,   day: 1,  freq: 'quarterly_1_4_7_10' },
+  { id: 'def_car',     type: 'expense', name: '车贷',       amount: 1861,    day: 24, freq: 'monthly' },
+  { id: 'def_tax',     type: 'expense', name: '税',         amount: 5142.72, day: 5,  freq: 'monthly' },
+  { id: 'def_cryo',    type: 'expense', name: 'CRYOVIVA',   amount: 227.52,  day: 29, freq: 'monthly' },
+  { id: 'def_gpt1',    type: 'expense', name: 'ChatGPT',    amount: 30,      day: 19, freq: 'monthly' },
+  { id: 'def_gpt2',    type: 'expense', name: 'ChatGPT',    amount: 30,      day: 19, freq: 'monthly' },
+  { id: 'def_claude',  type: 'expense', name: 'Claude',     amount: 30.3,    day: 6,  freq: 'monthly' },
+  { id: 'def_yt',      type: 'expense', name: 'YouTube',    amount: 27.98,   day: 1,  freq: 'monthly' },
+];
 
 let _saveTimer = null;
 function saveToServer() {
@@ -582,7 +561,7 @@ function saveToServer() {
     fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assets, incomes, expenses, recurring, snapshots, creditCards })
+      body: JSON.stringify({ assets, snapshots, creditCards, fixedItems })
     }).catch(err => console.error('Save failed:', err));
   }, 300);
 }
@@ -592,11 +571,9 @@ async function loadFromServer() {
     const res = await fetch('/api/data');
     const d = await res.json();
     assets      = d.assets      || {};
-    incomes     = d.incomes     || [];
-    expenses    = d.expenses    || [];
-    recurring   = d.recurring   || [];
     snapshots   = d.snapshots   || [];
     creditCards = d.creditCards || {};
+    fixedItems  = d.fixedItems  && d.fixedItems.length ? d.fixedItems : DEFAULT_FIXED_ITEMS;
   } catch (err) {
     console.error('Load failed:', err);
   }
@@ -655,100 +632,31 @@ for (let i = -11; i <= 1; i++) {
   if (i === 0) o.selected = true;
   mSel.appendChild(o);
 }
-mSel.onchange = () => { resetDefaultDates(); propagateRecurring(); render(); };
+mSel.onchange = () => { render(); };
 const getMonth = () => mSel.value;
-const matchMonth = d => d && d.startsWith(getMonth());
 
-// ── Set default dates (follow selected month) ──
-function selectedMonthDate(day) {
-  return getMonth() + '-' + String(day).padStart(2, '0');
-}
-function resetDefaultDates() {
-  const d = new Date();
-  const curMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  const day = getMonth() === curMonth ? d.getDate() : 1;
-  document.getElementById('iDate').value = selectedMonthDate(day);
-  document.getElementById('eDate').value = selectedMonthDate(day);
-}
-resetDefaultDates();
-
-// ── Propagate recurring expenses ──
-function propagateRecurring() {
-  const m = getMonth();
-  recurring.forEach(r => {
-    const exists = expenses.some(e => e.recurringId === r.id && matchMonth(e.date));
-    if (!exists) {
-      expenses.push({
-        id: uid(), recurringId: r.id, name: r.name,
-        amount: r.amount, note: r.note || '',
-        date: m + '-01', recurring: true
-      });
-    }
-  });
-  saveToServer();
-}
-
-// ── Toggle forms ──
-document.getElementById('toggleInc').onclick = () => {
-  document.getElementById('incForm').classList.toggle('open');
-};
-document.getElementById('toggleExp').onclick = () => {
-  document.getElementById('expForm').classList.toggle('open');
+// ── Fixed items ──
+document.getElementById('toggleFixed').onclick = () => {
+  document.getElementById('fixedForm').classList.toggle('open');
 };
 
-// ── Add income ──
-document.getElementById('iSubmit').onclick = () => {
-  const amt = parseFloat(document.getElementById('iAmt').value);
-  const cur = document.getElementById('iCur').value;
-  const date = document.getElementById('iDate').value;
-  const note = document.getElementById('iNote').value.trim();
-  if (isNaN(amt) || amt <= 0 || !date) return;
-  incomes.push({ id: uid(), src: 'salary', amount: amt, currency: cur, date, note });
+document.getElementById('fSubmit').onclick = () => {
+  const type = document.getElementById('fType').value;
+  const name = document.getElementById('fName').value.trim();
+  const amt = parseFloat(document.getElementById('fAmt').value);
+  const day = parseInt(document.getElementById('fDay').value);
+  const freq = document.getElementById('fFreq').value;
+  if (!name || isNaN(amt) || amt <= 0 || isNaN(day) || day < 1 || day > 28) return;
+  fixedItems.push({ id: uid(), type, name, amount: amt, day, freq });
   saveToServer();
-  document.getElementById('iAmt').value = '';
-  document.getElementById('iNote').value = '';
+  document.getElementById('fName').value = '';
+  document.getElementById('fAmt').value = '';
+  document.getElementById('fDay').value = '';
   render();
 };
 
-// ── Add expense ──
-document.getElementById('eSubmit').onclick = () => {
-  const name = document.getElementById('eName').value.trim();
-  const amt = parseFloat(document.getElementById('eAmt').value);
-  const date = document.getElementById('eDate').value;
-  const note = document.getElementById('eNote').value.trim();
-  const isRecur = document.getElementById('eRecur').checked;
-  if (!name || isNaN(amt) || amt <= 0 || !date) return;
-
-  if (isRecur) {
-    const rid = uid();
-    recurring.push({ id: rid, name, amount: amt, note });
-    saveToServer();
-    expenses.push({
-      id: uid(), recurringId: rid, name, amount: amt, note,
-      date: getMonth() + '-01', recurring: true
-    });
-  } else {
-    expenses.push({ id: uid(), name, amount: amt, note, date, recurring: false });
-  }
-  saveToServer();
-  document.getElementById('eName').value = '';
-  document.getElementById('eAmt').value = '';
-  document.getElementById('eNote').value = '';
-  document.getElementById('eRecur').checked = false;
-  render();
-};
-
-// ── Delete ──
-window.delIncome = id => { incomes = incomes.filter(x => x.id !== id); saveToServer(); render(); };
-window.delExpense = id => {
-  const e = expenses.find(x => x.id === id);
-  if (e && e.recurringId) {
-    if (confirm('这是固定支出。只删本月，还是永久移除？\n\n确定 = 永久移除\n取消 = 只删本月')) {
-      recurring = recurring.filter(r => r.id !== e.recurringId);
-      saveToServer();
-    }
-  }
-  expenses = expenses.filter(x => x.id !== id);
+window.delFixed = id => {
+  fixedItems = fixedItems.filter(x => x.id !== id);
   saveToServer();
   render();
 };
@@ -809,7 +717,7 @@ document.getElementById('ccModalConfirm').onclick = () => {
 
 // ── Export / Import ──
 document.getElementById('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify({ assets, incomes, expenses, recurring, snapshots, creditCards }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ assets, snapshots, creditCards, fixedItems }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'finance_backup_' + today() + '.json';
@@ -824,11 +732,9 @@ document.getElementById('importFile').onchange = e => {
     try {
       const d = JSON.parse(ev.target.result);
       if (d.assets)      assets      = d.assets;
-      if (d.incomes)     incomes     = d.incomes;
-      if (d.expenses)    expenses    = d.expenses;
-      if (d.recurring)   recurring   = d.recurring;
       if (d.snapshots)   snapshots   = d.snapshots;
       if (d.creditCards) creditCards = d.creditCards;
+      if (d.fixedItems)  fixedItems  = d.fixedItems;
       saveToServer();
       render();
     } catch { alert('文件格式错误'); }
@@ -1054,25 +960,10 @@ function render() {
   });
   totalAssets -= ccTotal;
 
-  // Monthly income
-  const mInc = incomes.filter(x => matchMonth(x.date));
-  let totalInc = 0;
-  mInc.forEach(x => { totalInc += toSGD(x.amount, x.currency); });
-
-  // Monthly expenses
-  const mExp = expenses.filter(x => matchMonth(x.date));
-  const totalExp = mExp.reduce((s, x) => s + x.amount, 0);
-  const net = totalInc - totalExp;
-
   // Hero
   document.getElementById('heroVal').textContent = fmtSGD(totalAssets);
   document.getElementById('heroConv').textContent = `¥${(totalAssets * CONV_RATES.CNY).toLocaleString('en', {maximumFractionDigits:0})} RMB · $${(totalAssets * CONV_RATES.USD).toLocaleString('en', {maximumFractionDigits:2})} USD`;
-  document.getElementById('heroInc').textContent = fmtSGD(totalInc);
-  document.getElementById('heroExp').textContent = fmtSGD(totalExp);
   document.getElementById('heroCC').textContent = fmtSGD(ccTotal);
-  const netEl = document.getElementById('heroNet');
-  netEl.textContent = (net >= 0 ? '+' : '') + fmtSGD(net);
-  netEl.style.color = net >= 0 ? 'var(--accent)' : 'var(--red)';
   const stockRatio = totalAssets > 0 ? (stockTotal / totalAssets * 100).toFixed(1) + '%' : '—';
   document.getElementById('heroStock').textContent = stockRatio;
 
@@ -1109,49 +1000,58 @@ function render() {
     </div>`;
   }).join('');
 
-  // Income table
-  const incBody = document.getElementById('incBody');
-  if (!mInc.length) {
-    incBody.innerHTML = '<div class="empty">暂无收入记录</div>';
-  } else {
-    let h = '<table><thead><tr><th>日期</th><th>备注</th><th class="amt-h">金额</th><th class="del-cell"></th></tr></thead><tbody>';
-    mInc.sort((a, b) => b.date.localeCompare(a.date)).forEach(x => {
-      h += `<tr>
-        <td class="date-cell">${x.date}</td>
-        <td class="note-cell">${x.note || ''}</td>
-        <td class="amt">${fmt(x.amount, x.currency)}<span class="cur-badge ${x.currency}">${x.currency}</span></td>
-        <td class="del-cell"><button class="del-btn" onclick="delIncome('${x.id}')">✕</button></td>
-      </tr>`;
-    });
-    h += '</tbody></table>';
-    h += `<div class="sec-foot"><span>合计</span><span class="val">${fmtSGD(totalInc)}</span></div>`;
-    incBody.innerHTML = h;
-  }
+  // Fixed items
+  const curMonth = parseInt(getMonth().split('-')[1]);
+  const activeItems = fixedItems.filter(f => {
+    if (f.freq === 'monthly') return true;
+    if (f.freq === 'quarterly_1_4_7_10') return [1, 4, 7, 10].includes(curMonth);
+    return true;
+  });
 
-  // Expense table
-  const expBody = document.getElementById('expBody');
-  if (!mExp.length) {
-    expBody.innerHTML = '<div class="empty">暂无支出记录</div>';
+  const fixedBody = document.getElementById('fixedBody');
+  if (!activeItems.length) {
+    fixedBody.innerHTML = '<div class="empty">暂无固定收支</div>';
   } else {
-    const sorted = [...mExp].sort((a, b) => {
-      if (a.recurring && !b.recurring) return -1;
-      if (!a.recurring && b.recurring) return 1;
-      return b.date.localeCompare(a.date);
-    });
-    let h = '<table><thead><tr><th>项目</th><th>日期</th><th>备注</th><th class="amt-h">金额</th><th class="del-cell"></th></tr></thead><tbody>';
-    sorted.forEach(x => {
-      const recurTag = x.recurring ? '<span class="recurring-tag">每月</span>' : '';
-      h += `<tr>
-        <td><strong>${x.name}</strong>${recurTag}</td>
-        <td class="date-cell">${x.date}</td>
-        <td class="note-cell">${x.note || ''}</td>
-        <td class="amt">${fmtSGD(x.amount)}</td>
-        <td class="del-cell"><button class="del-btn" onclick="delExpense('${x.id}')">✕</button></td>
-      </tr>`;
-    });
-    h += '</tbody></table>';
-    h += `<div class="sec-foot"><span>合计</span><span class="val">${fmtSGD(totalExp)}</span></div>`;
-    expBody.innerHTML = h;
+    const incItems = activeItems.filter(f => f.type === 'income').sort((a, b) => a.day - b.day);
+    const expItems = activeItems.filter(f => f.type === 'expense').sort((a, b) => a.day - b.day);
+    let totalInc = 0, totalExp = 0;
+
+    let h = '';
+    if (incItems.length) {
+      h += '<div class="fixed-group"><div class="fixed-label">收入</div>';
+      h += '<table><tbody>';
+      incItems.forEach(x => {
+        totalInc += x.amount;
+        const freqLabel = x.freq === 'monthly' ? '每月' : '季度';
+        h += `<tr>
+          <td class="date-cell">${x.day}日</td>
+          <td><strong>${x.name}</strong><span class="recurring-tag">${freqLabel}</span></td>
+          <td class="amt">${fmtSGD(x.amount)}</td>
+          <td class="del-cell"><button class="del-btn" onclick="delFixed('${x.id}')">✕</button></td>
+        </tr>`;
+      });
+      h += '</tbody></table></div>';
+    }
+    if (expItems.length) {
+      h += '<div class="fixed-group"><div class="fixed-label">支出</div>';
+      h += '<table><tbody>';
+      expItems.forEach(x => {
+        totalExp += x.amount;
+        const freqLabel = x.freq === 'monthly' ? '每月' : '季度';
+        h += `<tr>
+          <td class="date-cell">${x.day}日</td>
+          <td><strong>${x.name}</strong><span class="recurring-tag">${freqLabel}</span></td>
+          <td class="amt">${fmtSGD(x.amount)}</td>
+          <td class="del-cell"><button class="del-btn" onclick="delFixed('${x.id}')">✕</button></td>
+        </tr>`;
+      });
+      h += '</tbody></table></div>';
+    }
+    h += `<div class="sec-foot">
+      <span>结余</span>
+      <span class="val" style="color:${totalInc - totalExp >= 0 ? 'var(--accent)' : 'var(--red)'}">${(totalInc - totalExp >= 0 ? '+' : '')}${fmtSGD(totalInc - totalExp)}</span>
+    </div>`;
+    fixedBody.innerHTML = h;
   }
 
   renderChart();
@@ -1161,8 +1061,7 @@ function render() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     const ae = document.activeElement;
-    if (['iAmt','iNote'].includes(ae.id)) document.getElementById('iSubmit').click();
-    if (['eName','eAmt','eNote'].includes(ae.id)) document.getElementById('eSubmit').click();
+    if (['fName','fAmt','fDay'].includes(ae.id)) document.getElementById('fSubmit').click();
     if (ae.id === 'modalAmt') document.getElementById('modalConfirm').click();
     if (ae.id === 'ccModalAmt') document.getElementById('ccModalConfirm').click();
   }
@@ -1174,7 +1073,6 @@ document.addEventListener('keydown', e => {
 
 // ── Init ──
 loadFromServer().then(() => {
-  propagateRecurring();
   const d = today();
   if (!snapshots.some(s => s.date === d) && Object.keys(assets).length > 0) {
     takeSnapshot();
