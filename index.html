@@ -958,30 +958,41 @@ function renderChart() {
   const maxLabels = 8;
   const labelStep = Math.max(1, Math.ceil(data.length / maxLabels));
 
-  data.forEach((d, i) => {
+  const points = data.map((d, i) => {
     const { cash, stock } = getBreakdown(d);
-    const x = P.l + i * barGap + (barGap - barW) / 2;
-    const base = sy(yMin);
+    const x = P.l + (data.length > 1 ? i * cw / (data.length - 1) : cw / 2);
+    return { x, yTotal: sy(d.total), yCash: sy(cash), cash, stock, total: d.total };
+  });
 
-    // Cash bar (bottom)
-    const cashH = (cash - yMin) / (yMax - yMin) * ch;
-    const cashY = base - cashH;
-    svg += `<rect x="${x}" y="${cashY}" width="${barW}" height="${cashH}" rx="2" fill="#3d6b4f" class="bar" data-i="${i}" style="cursor:pointer"/>`;
+  // Filled area: cash (green, from bottom to cash line)
+  let cashPath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.yCash).join(' ');
+  cashPath += ' L' + points[points.length - 1].x + ',' + sy(yMin) + ' L' + points[0].x + ',' + sy(yMin) + ' Z';
+  svg += `<path d="${cashPath}" fill="#3d6b4f" opacity="0.15"/>`;
 
-    // Stock bar (stacked on top)
-    const stockH = stock / (yMax - yMin) * ch;
-    const stockY = cashY - stockH;
-    if (stock > 0) {
-      svg += `<rect x="${x}" y="${stockY}" width="${barW}" height="${stockH}" rx="2" fill="#5b7bb4" class="bar" data-i="${i}" style="cursor:pointer"/>`;
+  // Filled area: stock (blue, from cash line to total line)
+  if (points.some(p => p.stock > 0)) {
+    let stockPath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.yTotal).join(' ');
+    for (let i = points.length - 1; i >= 0; i--) stockPath += ' L' + points[i].x + ',' + points[i].yCash;
+    stockPath += ' Z';
+    svg += `<path d="${stockPath}" fill="#5b7bb4" opacity="0.15"/>`;
+  }
 
-      // Stock percentage label
-      const pct = d.total > 0 ? (stock / d.total * 100).toFixed(0) : '0';
-      svg += `<text x="${x + barW / 2}" y="${stockY - 4}" text-anchor="middle" fill="#5b7bb4" font-size="9" font-weight="500">${pct}%</text>`;
+  // Lines
+  const totalLine = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.yTotal).join(' ');
+  svg += `<path d="${totalLine}" fill="none" stroke="#3d6b4f" stroke-width="1.5" stroke-linejoin="round"/>`;
+
+  const cashLine = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.yCash).join(' ');
+  svg += `<path d="${cashLine}" fill="none" stroke="#3d6b4f" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>`;
+
+  // Dots + percentage labels
+  points.forEach((p, i) => {
+    svg += `<circle cx="${p.x}" cy="${p.yTotal}" r="3" fill="#fff" stroke="#3d6b4f" stroke-width="1.5" class="bar" data-i="${i}" style="cursor:pointer"/>`;
+    if (p.stock > 0) {
+      const pct = p.total > 0 ? (p.stock / p.total * 100).toFixed(0) : '0';
+      svg += `<text x="${p.x}" y="${p.yTotal - 8}" text-anchor="middle" fill="#5b7bb4" font-size="9" font-weight="500">${pct}%</text>`;
     }
-
-    // X labels
     if (i % labelStep === 0 || i === data.length - 1) {
-      svg += `<text x="${x + barW / 2}" y="${H - 6}" text-anchor="middle" fill="#a8a29e" font-size="9">${d.label}</text>`;
+      svg += `<text x="${p.x}" y="${H - 6}" text-anchor="middle" fill="#a8a29e" font-size="9">${data[i].label}</text>`;
     }
   });
 
